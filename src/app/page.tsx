@@ -6,23 +6,15 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 const CATEGORIES = [
-  { icon: '📱', label: 'حسابات سوشيال', href: '/social-accounts', count: '12,400+', color: '#8B5CF6' },
-  { icon: '💎', label: 'أصول رقمية', href: '/digital-assets', count: '3,200+', color: '#2563EB' },
-  { icon: '🛒', label: 'متجر رقمي', href: '/store', count: '8,900+', color: '#10B981' },
-  { icon: '⭐', label: 'اشتراكات', href: '/subscriptions', count: '5,600+', color: '#F59E0B' },
-  { icon: '⚡', label: 'خدمات', href: '/services', count: '7,100+', color: '#EF4444' },
-  { icon: '📋', label: 'طلبات', href: '/requests', count: '1,800+', color: '#06B6D4' },
-  { icon: '🔨', label: 'مزادات', href: '/auctions', count: '420+', color: '#F97316' },
+  { icon: '📱', label: 'حسابات سوشيال', href: '/social-accounts', color: '#8B5CF6' },
+  { icon: '💎', label: 'أصول رقمية', href: '/digital-assets', color: '#2563EB' },
+  { icon: '🛒', label: 'منتج رقمي', href: '/store', color: '#10B981' },
+  { icon: '⭐', label: 'اشتراكات', href: '/subscriptions', color: '#F59E0B' },
+  { icon: '⚡', label: 'خدمات', href: '/services', color: '#EF4444' },
+  { icon: '📋', label: 'طلبات', href: '/requests', color: '#06B6D4' },
+  { icon: '🔨', label: 'مزادات', href: '/auctions', color: '#F97316' },
 ];
 
-const FEATURED = [
-  { id: 1, type: 'حساب يوتيوب', platform: 'YouTube', icon: '▶️', name: 'قناة تقنية متميزة', followers: '450K', price: '8,500', engagement: '7.2%', verified: true, featured: true, rating: 4.9, country: '🇸🇦', monetized: true },
-  { id: 2, type: 'اشتراك', platform: 'ChatGPT Plus', icon: '🤖', name: 'اشتراك ChatGPT Plus', followers: '—', price: '180', engagement: '—', verified: true, featured: false, rating: 5.0, country: '🌍', monetized: false },
-  { id: 3, type: 'متجر إلكتروني', platform: 'Shopify', icon: '🛍️', name: 'متجر ملابس ناجح', followers: '—', price: '22,000', engagement: '—', verified: true, featured: true, rating: 4.8, country: '🇦🇪', monetized: true },
-  { id: 4, type: 'حساب إنستغرام', platform: 'Instagram', icon: '📸', name: 'صفحة موضة فاخرة', followers: '280K', price: '3,200', engagement: '5.8%', verified: false, featured: false, rating: 4.7, country: '🇪🇬', monetized: false },
-  { id: 5, type: 'قالب ووردبريس', platform: 'WordPress', icon: '🎨', name: 'قالب متجر احترافي', followers: '—', price: '450', engagement: '—', verified: true, featured: false, rating: 4.6, country: '🌍', monetized: false },
-  { id: 6, type: 'حساب تيكتوك', platform: 'TikTok', icon: '🎵', name: 'حساب ترفيه وكوميديا', followers: '1.2M', price: '12,000', engagement: '9.1%', verified: true, featured: true, rating: 4.9, country: '🇸🇦', monetized: true },
-];
 
 const ESCROW_STEPS = [
   { num: 1, icon: '🤝', title: 'الاتفاق', desc: 'يتفق البائع والمشتري على الشروط' },
@@ -31,19 +23,6 @@ const ESCROW_STEPS = [
   { num: 4, icon: '📦', title: 'التسليم', desc: 'يسلم البائع المنتج أو الخدمة' },
   { num: 5, icon: '✅', title: 'التأكيد', desc: 'يؤكد المشتري استلام المنتج' },
   { num: 6, icon: '💰', title: 'التحويل', desc: 'يُحوَّل المبلغ للبائع بعد خصم 5%' },
-];
-
-const STATS = [
-  { val: '50,000+', label: 'مستخدم نشط', icon: '👥' },
-  { val: '120,000+', label: 'صفقة مكتملة', icon: '✅' },
-  { val: '$2.5M+', label: 'حجم التداول', icon: '💰' },
-  { val: '99.8%', label: 'رضا المستخدمين', icon: '⭐' },
-];
-
-const REQUESTS = [
-  { id: 1, title: 'أبحث عن قناة يوتيوب تقنية', budget: '$3,000 - $8,000', offers: 4, time: 'منذ 2 ساعة', cat: 'يوتيوب' },
-  { id: 2, title: 'مطلوب خدمة تصميم شعار احترافي', budget: '$50 - $200', offers: 11, time: 'منذ 3 ساعات', cat: 'تصميم' },
-  { id: 3, title: 'أريد شراء اشتراك Midjourney', budget: '$30 - $60', offers: 7, time: 'منذ يوم', cat: 'اشتراك' },
 ];
 
 function StatCard({ val, label, icon }: { val: string; label: string; icon: string }) {
@@ -351,22 +330,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* STATS */}
-      <section style={{
-        background: 'linear-gradient(135deg, #1E3A8A, #0F172A)',
-        padding: '60px 24px',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 24,
-          }}>
-            {STATS.map((s, i) => <StatCard key={i} {...s} />)}
-          </div>
-        </div>
-      </section>
-
       {/* CATEGORIES */}
       <section style={{ padding: '80px 24px', background: 'white' }}>
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>
@@ -377,7 +340,7 @@ export default function HomePage() {
               fontSize: 13, fontWeight: 700, marginBottom: 12,
             }}>الأقسام الرئيسية</div>
             <h2 className="section-title">اكتشف ما تبحث عنه</h2>
-            <p className="section-subtitle">أكثر من 7 أقسام تضم آلاف الإعلانات والخدمات الموثوقة</p>
+            <p className="section-subtitle">7 أقسام متخصصة لكل ما يتعلق بالأصول الرقمية</p>
           </div>
           <div style={{
             display: 'grid',
@@ -412,8 +375,7 @@ export default function HomePage() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     margin: '0 auto 14px',
                   }}>{cat.icon}</div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: '#0F172A', marginBottom: 4 }}>{cat.label}</div>
-                  <div style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600 }}>{cat.count} إعلان</div>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: '#0F172A' }}>{cat.label}</div>
                 </div>
               </Link>
             ))}
@@ -421,54 +383,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FEATURED LISTINGS */}
-      <section style={{ padding: '80px 24px', background: '#F8FAFC' }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 40, flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <div style={{
-                display: 'inline-block', padding: '6px 18px', borderRadius: 100,
-                background: 'rgba(16,185,129,0.08)', color: '#10B981',
-                fontSize: 13, fontWeight: 700, marginBottom: 12,
-              }}>إعلانات مميزة</div>
-              <h2 className="section-title">أبرز الإعلانات الآن</h2>
-              <p style={{ color: '#64748B', fontSize: 15 }}>إعلانات محققة ومراجعة من فريق Trust🔁Deal</p>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {['all', 'social', 'assets', 'subscriptions'].map(cat => (
-                <button
-                  key={cat}
-                  id={`filter-${cat}`}
-                  onClick={() => setActiveCategory(cat)}
-                  style={{
-                    padding: '8px 18px', borderRadius: 100, fontSize: 13, fontWeight: 600,
-                    border: '1.5px solid',
-                    borderColor: activeCategory === cat ? '#1E3A8A' : '#E2E8F0',
-                    background: activeCategory === cat ? '#1E3A8A' : 'white',
-                    color: activeCategory === cat ? 'white' : '#64748B',
-                    cursor: 'pointer', fontFamily: 'Tajawal, sans-serif',
-                    transition: 'all 0.2s',
-                  }}
-                >{cat === 'all' ? 'الكل' : cat === 'social' ? 'سوشيال' : cat === 'assets' ? 'أصول' : 'اشتراكات'}</button>
-              ))}
-            </div>
-          </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: 24,
-          }}>
-            {FEATURED.map(item => <ListingCard key={item.id} item={item} />)}
-          </div>
-          <div style={{ textAlign: 'center', marginTop: 40 }}>
+      {/* BROWSE CTA */}
+      <section style={{ padding: '60px 24px', background: '#F8FAFC' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ display: 'inline-block', padding: '6px 18px', borderRadius: 100, background: 'rgba(16,185,129,0.08)', color: '#10B981', fontSize: 13, fontWeight: 700, marginBottom: 16 }}>ابدأ الآن</div>
+          <h2 style={{ fontSize: 32, fontWeight: 900, color: '#0F172A', marginBottom: 12 }}>اكتشف الإعلانات المتاحة</h2>
+          <p style={{ color: '#64748B', fontSize: 16, marginBottom: 32, lineHeight: 1.7 }}>
+            تصفح الإعلانات المنشورة من بائعين موثوقين وابدأ صفقتك بأمان عبر نظام Escrow
+          </p>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/social-accounts" style={{ textDecoration: 'none' }}>
-              <button style={{
-                padding: '14px 40px', fontSize: 16, fontWeight: 700,
-                background: 'linear-gradient(135deg, #1E3A8A, #2563EB)',
-                border: 'none', borderRadius: 14, color: 'white', cursor: 'pointer',
-                fontFamily: 'Tajawal, sans-serif',
-                boxShadow: '0 8px 24px rgba(30,58,138,0.25)',
-              }}>عرض جميع الإعلانات ←</button>
+              <button style={{ padding: '14px 32px', background: 'linear-gradient(135deg, #10B981, #059669)', border: 'none', borderRadius: 14, color: 'white', fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}>🛒 تصفح الإعلانات</button>
+            </Link>
+            <Link href="/listings/create" style={{ textDecoration: 'none' }}>
+              <button style={{ padding: '14px 32px', background: 'white', border: '1.5px solid #E2E8F0', borderRadius: 14, color: '#0F172A', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>+ أضف إعلانك</button>
             </Link>
           </div>
         </div>
@@ -565,78 +493,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* LATEST REQUESTS */}
-      <section style={{ padding: '80px 24px', background: 'white' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40, flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <div style={{
-                display: 'inline-block', padding: '6px 18px', borderRadius: 100,
-                background: 'rgba(6,182,212,0.08)', color: '#06B6D4',
-                fontSize: 13, fontWeight: 700, marginBottom: 12,
-              }}>أحدث الطلبات</div>
-              <h2 className="section-title">طلبات المستخدمين</h2>
-              <p className="section-subtitle">ابدأ وأرسل عروضك للربح الآن</p>
-            </div>
-            <Link href="/requests/create" style={{ textDecoration: 'none' }}>
-              <button style={{
-                padding: '12px 28px', fontSize: 14, fontWeight: 700,
-                background: 'linear-gradient(135deg, #06B6D4, #2563EB)',
-                border: 'none', borderRadius: 12, color: 'white', cursor: 'pointer',
-                fontFamily: 'Tajawal, sans-serif',
-              }}>+ أضف طلبك</button>
-            </Link>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {REQUESTS.map(req => (
-              <Link key={req.id} href={`/requests/${req.id}`} style={{ textDecoration: 'none' }}>
-                <div style={{
-                  padding: '20px 24px', borderRadius: 16,
-                  border: '1.5px solid #E2E8F0', background: 'white',
-                  display: 'flex', alignItems: 'center', gap: 20,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  flexWrap: 'wrap',
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.borderColor = '#2563EB';
-                  el.style.boxShadow = '0 8px 24px rgba(37,99,235,0.08)';
-                  el.style.transform = 'translateX(-4px)';
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.borderColor = '#E2E8F0';
-                  el.style.boxShadow = 'none';
-                  el.style.transform = 'translateX(0)';
-                }}
-                >
-                  <div style={{
-                    width: 48, height: 48, borderRadius: 14,
-                    background: 'rgba(37,99,235,0.08)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 22, flexShrink: 0,
-                  }}>📋</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 16, color: '#0F172A', marginBottom: 4 }}>{req.title}</div>
-                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, color: '#64748B' }}>💰 {req.budget}</span>
-                      <span style={{ fontSize: 13, color: '#64748B' }}>🏷️ {req.cat}</span>
-                      <span style={{ fontSize: 13, color: '#64748B' }}>⏰ {req.time}</span>
-                    </div>
-                  </div>
-                  <div style={{
-                    padding: '6px 14px', borderRadius: 100,
-                    background: 'rgba(16,185,129,0.08)',
-                    color: '#10B981', fontSize: 13, fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                  }}>{req.offers} عروض</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* WHY TRUST DEAL */}
       <section style={{ padding: '80px 24px', background: '#F8FAFC' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
@@ -709,7 +565,7 @@ export default function HomePage() {
             ابدأ رحلتك الآن 🚀
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.75)', marginBottom: 40, lineHeight: 1.7 }}>
-            انضم لأكثر من 50,000 مستخدم يبيعون ويشترون بأمان عبر Trust🔁Deal
+            انضم إلى منصة Trust🔁Deal وابدأ البيع والشراء بأمان تام عبر نظام Escrow الاحترافي
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/auth/register" style={{ textDecoration: 'none' }}>
