@@ -109,21 +109,10 @@ export default function Header() {
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                     <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>الإشعارات</span>
                   </div>
-                  {[
-                    { icon: '💰', text: 'تم تأكيد الدفع لصفقتك #1234', time: 'قبل 5 دقائق', color: '#10B981' },
-                    { icon: '📩', text: 'رسالة جديدة من محمد أحمد', time: 'قبل 20 دقيقة', color: '#2563EB' },
-                    { icon: '⚠️', text: 'تم فتح نزاع على الصفقة #1230', time: 'قبل ساعة', color: '#F59E0B' },
-                  ].map((n, i) => (
-                    <div key={i} style={{ padding: '14px 20px', display: 'flex', gap: 12, alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'background 0.2s' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${n.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{n.icon}</div>
-                      <div>
-                        <div style={{ color: 'white', fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{n.text}</div>
-                        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{n.time}</div>
-                      </div>
-                    </div>
-                  ))}
+                  <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>🔔</div>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>لا توجد إشعارات جديدة</div>
+                  </div>
                   <Link href="/notifications" onClick={() => setNotifOpen(false)} style={{ textDecoration: 'none' }}>
                     <div style={{ padding: '12px 20px', textAlign: 'center', color: '#2563EB', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>عرض جميع الإشعارات →</div>
                   </Link>
