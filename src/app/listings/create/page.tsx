@@ -302,7 +302,7 @@ export default function CreateListingPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: '#64748B', fontSize: 13 }}>سعر البيع</span>
-                        <span style={{ fontWeight: 700, color: '#0F172A' }}>${Number(form.price).toLocaleString()}</span>
+                        <span style={{ fontWeight: 700, color: '#0F172A' }}>${Number(form.price).toLocaleString('en-US')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: '#64748B', fontSize: 13 }}>عمولة المنصة (5%)</span>
@@ -311,7 +311,7 @@ export default function CreateListingPage() {
                       <div style={{ height: 1, background: '#E2E8F0' }} />
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontWeight: 800, color: '#0F172A' }}>صافي ما ستحصل</span>
-                        <span style={{ fontWeight: 900, fontSize: 20, color: '#10B981' }}>${(Number(form.price) * 0.95).toLocaleString()}</span>
+                        <span style={{ fontWeight: 900, fontSize: 20, color: '#10B981' }}>${(Number(form.price) * 0.95).toLocaleString('en-US')}</span>
                       </div>
                     </div>
                   </div>

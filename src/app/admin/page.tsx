@@ -128,7 +128,7 @@ export default function AdminDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
                           <div style={{ color: 'white', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{d.title}</div>
-                          <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>{d.deal} · ${d.amount.toLocaleString()}</div>
+                          <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>{d.deal} · ${d.amount.toLocaleString('en-US')}</div>
                         </div>
                         <button id={`admin-dispute-review-${d.id}`} onClick={() => { setActiveSection('disputes'); setDisputeAction(d.id); }}
                           style={{ padding: '5px 12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#EF4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
                       <div key={i} style={{ marginBottom: 16 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                           <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{stat.label}</span>
-                          <span style={{ color: 'white', fontSize: 13, fontWeight: 700 }}>{stat.val.toLocaleString()}</span>
+                          <span style={{ color: 'white', fontSize: 13, fontWeight: 700 }}>{stat.val.toLocaleString('en-US')}</span>
                         </div>
                         <div style={{ height: 6, borderRadius: 6, background: 'rgba(255,255,255,0.08)' }}>
                           <div style={{ height: '100%', borderRadius: 6, background: stat.color, width: `${(stat.val / stat.max) * 100}%`, transition: 'width 0.6s ease' }} />
@@ -239,7 +239,7 @@ export default function AdminDashboard() {
                           </div>
                           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
                             <span>📋 {d.deal}</span>
-                            <span>💰 ${d.amount.toLocaleString()}</span>
+                            <span>💰 ${d.amount.toLocaleString('en-US')}</span>
                             <span>🛒 المشتري: {d.buyer}</span>
                             <span>🏷️ البائع: {d.seller}</span>
                             <span>📅 {d.opened}</span>
@@ -293,7 +293,7 @@ export default function AdminDashboard() {
                           <td style={{ padding: '12px 16px', color: 'white', fontSize: 13 }}>{d.title}</td>
                           <td style={{ padding: '12px 16px', color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>{d.buyer}</td>
                           <td style={{ padding: '12px 16px', color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>{d.seller}</td>
-                          <td style={{ padding: '12px 16px', color: '#10B981', fontSize: 14, fontWeight: 800 }}>${d.amount.toLocaleString()}</td>
+                          <td style={{ padding: '12px 16px', color: '#10B981', fontSize: 14, fontWeight: 800 }}>${d.amount.toLocaleString('en-US')}</td>
                           <td style={{ padding: '12px 16px' }}>
                             <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 100, background: st.bg, color: st.c, fontWeight: 700 }}>{st.label}</span>
                           </td>
@@ -323,7 +323,7 @@ export default function AdminDashboard() {
                       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{w.id} · {w.method.toUpperCase()} · {w.account} · {w.requested}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: '#10B981' }}>${w.amount.toLocaleString()}</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: '#10B981' }}>${w.amount.toLocaleString('en-US')}</div>
                       {w.status === 'pending' ? (
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button id={`approve-wd-${w.id}`} style={{ padding: '8px 16px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 10, color: '#10B981', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>✓ قبول</button>

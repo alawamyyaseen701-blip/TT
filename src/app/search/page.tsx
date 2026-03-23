@@ -196,7 +196,7 @@ function SearchContent() {
                           <span style={{ fontSize: 13, fontWeight: 700, color: '#F59E0B' }}>★ {Number(item.seller_rating || 0).toFixed(1)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: 20, fontWeight: 900, color: '#1E3A8A' }}>${Number(item.price).toLocaleString()}</div>
+                          <div style={{ fontSize: 20, fontWeight: 900, color: '#1E3A8A' }}>${Number(item.price).toLocaleString('en-US')}</div>
                           <Link href={`/listings/${item.id}`} style={{ textDecoration: 'none' }}>
                             <button id={`view-${item.id}`} style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #1E3A8A, #2563EB)', border: 'none', borderRadius: 9, color: 'white', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
                               عرض
