@@ -71,7 +71,7 @@ export default function ListingsBrowser({
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {/* Hero */}
       <section style={{
         background: 'linear-gradient(160deg, #0F172A 0%, #1E3A8A 60%, #0F172A 100%)',
@@ -133,7 +133,7 @@ export default function ListingsBrowser({
       </section>
 
       {/* Listings Grid */}
-      <section style={{ padding: '40px 24px 80px', flex: 1, background: '#F8FAFC' }}>
+      <section style={{ padding: '40px 24px 80px', flex: 1, background: '#F8FAFC', minHeight: 400 }}>
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>
 
           {/* Stats bar */}

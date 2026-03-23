@@ -119,29 +119,6 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Stats Bar */}
-        <div style={{
-          display: 'flex', gap: 32, justifyContent: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 32,
-          padding: '24px',
-          background: 'rgba(255,255,255,0.03)',
-          borderRadius: 16,
-          border: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          {[
-            { val: '+50,000', label: 'مستخدم نشط' },
-            { val: '+120,000', label: 'صفقة مكتملة' },
-            { val: '0 اختراق', label: 'سجل أمان' },
-            { val: '5%', label: 'فقط عمولة' },
-            { val: '24/7', label: 'دعم مستمر' },
-          ].map((stat, i) => (
-            <div key={i} style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: 900, fontSize: 22, color: '#10B981' }}>{stat.val}</div>
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
 
         {/* Bottom */}
         <div style={{
@@ -149,7 +126,7 @@ export default function Footer() {
           flexWrap: 'wrap', gap: 16,
           color: 'rgba(255,255,255,0.3)', fontSize: 13,
         }}>
-          <div>© 2025 Trust🔁Deal. جميع الحقوق محفوظة.</div>
+          <div>© 2026 Trust🔁Deal. جميع الحقوق محفوظة.</div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{
               width: 8, height: 8, borderRadius: '50%',
