@@ -20,7 +20,14 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: form.name, username: form.username || form.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'user' + Date.now().toString().slice(-6), email: form.email, phone: form.phone, password: form.password }),
+        body: JSON.stringify({
+            displayName: form.name,
+            username: form.username.trim() ||
+              ('user' + Math.random().toString(36).slice(2, 8)),
+            email: form.email,
+            phone: form.phone,
+            password: form.password,
+          }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.error || 'خطأ في إنشاء الحساب'); return; }
