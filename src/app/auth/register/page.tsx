@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ name: '', username: '', email: '', phone: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState('');
@@ -20,7 +20,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: form.name, email: form.email, phone: form.phone, password: form.password }),
+        body: JSON.stringify({ displayName: form.name, username: form.username || form.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'user' + Date.now().toString().slice(-6), email: form.email, phone: form.phone, password: form.password }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.error || 'خطأ في إنشاء الحساب'); return; }
@@ -118,6 +118,15 @@ export default function RegisterPage() {
                     onFocus={e => { e.target.style.borderColor = '#10B981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                     onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.12)'; e.target.style.boxShadow = 'none'; }}
                   />
+                </div>
+                <div style={{ marginBottom: 18 }}>
+                  <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 7 }}>اسم المستخدم (يوزرنيم) — بالإنجليزي</label>
+                  <input id="reg-username" type="text" required placeholder="ahmed123" value={form.username}
+                    onChange={e => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })} style={inputStyle}
+                    onFocus={e => { e.target.style.borderColor = '#10B981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.12)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 5 }}>أحرف إنجليزية وأرقام و _ فقط</div>
                 </div>
                 <div style={{ marginBottom: 18 }}>
                   <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 7 }}>البريد الإلكتروني</label>
