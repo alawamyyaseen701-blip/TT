@@ -131,13 +131,15 @@ export default function Header() {
               )}
             </div>
 
-            {/* Add Listing */}
-            <Link href="/listings/create" style={{ textDecoration: 'none' }}>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: 'linear-gradient(135deg, #10B981, #34D399)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
-                <span style={{ fontSize: 16 }}>+</span>
-                إضافة إعلان
-              </button>
-            </Link>
+            {/* Add Listing — للمسجلين فقط */}
+            {mounted && user && (
+              <Link href="/listings/create" style={{ textDecoration: 'none' }}>
+                <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: 'linear-gradient(135deg, #10B981, #34D399)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
+                  <span style={{ fontSize: 16 }}>+</span>
+                  إضافة إعلان
+                </button>
+              </Link>
+            )}
 
             {/* User Area */}
             {!mounted ? null : user ? (

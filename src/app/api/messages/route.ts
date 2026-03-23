@@ -1,92 +1,52 @@
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
+import { getDocs, createDoc, updateDoc } from '@/lib/firebase';
 
-// GET /api/messages — get conversations list
+// GET /api/messages
 export async function GET(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
-    const db = getDb();
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
 
     const { searchParams } = new URL(req.url);
-    const conversationWith = searchParams.get('with');
+    const dealId = searchParams.get('deal_id');
 
-    if (conversationWith) {
-      // Get messages in a specific conversation
-      const messages = db.prepare(`
-        SELECT m.*, 
-          s.username as sender_username, s.display_name as sender_name,
-          r.username as receiver_username, r.display_name as receiver_name
-        FROM messages m
-        JOIN users s ON s.id = m.sender_id
-        JOIN users r ON r.id = m.receiver_id
-        WHERE (m.sender_id = ? AND m.receiver_id = ?)
-           OR (m.sender_id = ? AND m.receiver_id = ?)
-        ORDER BY m.created_at ASC LIMIT 100
-      `).all(user.userId, conversationWith, conversationWith, user.userId);
+    const filters: any[] = [{ field: dealId ? 'deal_id' : 'receiver_id', op: '==', value: dealId || auth.userId }];
+    if (!dealId) filters.push({ field: 'read_at', op: '==', value: null });
 
-      // Mark messages as read
-      db.prepare(`
-        UPDATE messages SET read_at = datetime('now')
-        WHERE receiver_id = ? AND sender_id = ? AND read_at IS NULL
-      `).run(user.userId, conversationWith);
-
-      return apiSuccess({ messages });
+    let messages;
+    if (dealId) {
+      messages = await getDocs('messages', [{ field: 'deal_id', op: '==', value: dealId }], { orderBy: 'created_at', direction: 'asc' });
+    } else {
+      // Get all conversations for the user
+      const sent = await getDocs('messages', [{ field: 'sender_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' });
+      const received = await getDocs('messages', [{ field: 'receiver_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' });
+      messages = [...sent, ...received];
     }
 
-    // Get conversation list (latest message per user)
-    const conversations = db.prepare(`
-      SELECT 
-        CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END as other_user_id,
-        u.username as other_username, u.display_name as other_display_name,
-        u.role as other_role,
-        m.content as last_message,
-        m.created_at as last_message_at,
-        SUM(CASE WHEN m.receiver_id = ? AND m.read_at IS NULL THEN 1 ELSE 0 END) as unread_count
-      FROM messages m
-      JOIN users u ON u.id = CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END
-      WHERE m.sender_id = ? OR m.receiver_id = ?
-      GROUP BY other_user_id
-      ORDER BY m.created_at DESC
-      LIMIT 50
-    `).all(user.userId, user.userId, user.userId, user.userId, user.userId);
-
-    return apiSuccess({ conversations });
-  } catch (e) {
-    console.error(e);
-    return apiError('خطأ في الخادم', 500);
-  }
+    return apiSuccess({ messages });
+  } catch (e) { return apiError('خطأ في الخادم', 500); }
 }
 
-// POST /api/messages — send a message
+// POST /api/messages
 export async function POST(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
 
-    const { receiverId, content, dealId } = await req.json();
-    if (!receiverId || !content?.trim()) return apiError('receiverId و content مطلوبان');
-    if (receiverId === user.userId) return apiError('لا يمكنك مراسلة نفسك');
+    const { dealId, receiverId, content, type } = await req.json();
+    if (!receiverId || !content) return apiError('المستلم والمحتوى مطلوبان');
+    if (auth.userId === receiverId) return apiError('لا يمكنك مراسلة نفسك');
 
-    const db = getDb();
-    const receiver = db.prepare('SELECT id, username FROM users WHERE id = ?').get(receiverId);
-    if (!receiver) return apiError('المستخدم غير موجود', 404);
+    const id = await createDoc('messages', {
+      deal_id: dealId || null,
+      sender_id: auth.userId,
+      receiver_id: receiverId,
+      content,
+      type: type || 'text',
+      read_at: null,
+    });
 
-    const result = db.prepare(`
-      INSERT INTO messages (sender_id, receiver_id, content, deal_id)
-      VALUES (?, ?, ?, ?)
-    `).run(user.userId, receiverId, content.trim(), dealId || null);
-
-    // Notify receiver
-    db.prepare(`
-      INSERT INTO notifications (user_id, type, title, body, link)
-      VALUES (?, 'new_message', '💬 رسالة جديدة', ?, ?)
-    `).run(receiverId, `رسالة من ${user.username}: ${content.slice(0, 60)}`, `/messages`);
-
-    return apiSuccess({ messageId: result.lastInsertRowid, message: 'تم إرسال الرسالة' });
-  } catch (e) {
-    console.error(e);
-    return apiError('خطأ في الخادم', 500);
-  }
+    return apiSuccess({ id, message: 'تم إرسال الرسالة' }, 201);
+  } catch (e) { return apiError('خطأ في الخادم', 500); }
 }

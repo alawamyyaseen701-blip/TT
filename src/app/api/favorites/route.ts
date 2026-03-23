@@ -1,59 +1,47 @@
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
+import { getDocs, getDoc, getDb } from '@/lib/firebase';
 
-// GET /api/favorites — get user's favorites
+// GET /api/favorites
 export async function GET(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
-
-    const db = getDb();
-    const favorites = db.prepare(`
-      SELECT
-        l.id, l.type, l.platform, l.title, l.price, l.currency,
-        l.country, l.followers, l.monetized, l.featured, l.status,
-        l.created_at,
-        u.username as seller_username, u.display_name as seller_name,
-        u.rating as seller_rating, u.role as seller_role,
-        f.created_at as saved_at
-      FROM favorites f
-      JOIN listings l ON l.id = f.listing_id
-      JOIN users u ON u.id = l.seller_id
-      WHERE f.user_id = ?
-      ORDER BY f.created_at DESC
-    `).all(user.userId);
-
-    return apiSuccess({ favorites });
-  } catch (e) {
-    console.error(e);
-    return apiError('خطأ في الخادم', 500);
-  }
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
+    const favs = await getDocs('favorites', [{ field: 'user_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' });
+    // Enrich with listing data
+    const enriched = await Promise.all(favs.map(async f => {
+      const listing = await getDoc('listings', f.listing_id);
+      return { ...f, listing };
+    }));
+    return apiSuccess({ favorites: enriched.filter(f => f.listing) });
+  } catch (e) { return apiError('خطأ في الخادم', 500); }
 }
 
-// POST /api/favorites — toggle favorite
+// POST /api/favorites — toggle
 export async function POST(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
-
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
     const { listingId } = await req.json();
     if (!listingId) return apiError('معرف الإعلان مطلوب');
 
-    const db = getDb();
-    const existing = db.prepare('SELECT 1 FROM favorites WHERE user_id = ? AND listing_id = ?').get(user.userId, listingId);
+    const existing = await getDocs('favorites', [
+      { field: 'user_id', op: '==', value: auth.userId },
+      { field: 'listing_id', op: '==', value: listingId },
+    ]);
 
-    if (existing) {
-      db.prepare('DELETE FROM favorites WHERE user_id = ? AND listing_id = ?').run(user.userId, listingId);
-      db.prepare('UPDATE listings SET favorites = MAX(0, favorites - 1) WHERE id = ?').run(listingId);
-      return apiSuccess({ saved: false, message: 'تم إزالة الإعلان من المفضلة' });
+    if (existing.length > 0) {
+      // Remove
+      await getDb().collection('favorites').doc(existing[0].id).delete();
+      return apiSuccess({ favorited: false, message: 'تم إزالة من المفضلة' });
     } else {
-      db.prepare('INSERT INTO favorites (user_id, listing_id) VALUES (?, ?)').run(user.userId, listingId);
-      db.prepare('UPDATE listings SET favorites = favorites + 1 WHERE id = ?').run(listingId);
-      return apiSuccess({ saved: true, message: 'تم إضافة الإعلان إلى المفضلة' });
+      // Add
+      await getDb().collection('favorites').add({
+        user_id: auth.userId,
+        listing_id: listingId,
+        created_at: new Date().toISOString(),
+      });
+      return apiSuccess({ favorited: true, message: 'تم إضافة للمفضلة' });
     }
-  } catch (e) {
-    console.error(e);
-    return apiError('خطأ في الخادم', 500);
-  }
+  } catch (e) { return apiError('خطأ في الخادم', 500); }
 }

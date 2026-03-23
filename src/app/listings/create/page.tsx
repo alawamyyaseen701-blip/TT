@@ -39,6 +39,14 @@ export default function CreateListingPage() {
   const [error, setError] = useState('');
   const [publishedId, setPublishedId] = useState('');
 
+  // ── Auth Guard ───────────────────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.replace('/auth/login?redirect=/listings/create');
+    }
+  }, []);
+
   const selectedCat = CATEGORIES.find(c => c.id === category);
 
   const handlePublish = async () => {
