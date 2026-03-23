@@ -63,9 +63,9 @@ export default function Header() {
         style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
           transition: 'all 0.3s ease',
-          background: scrolled ? 'rgba(15,23,42,0.97)' : 'transparent',
-          backdropFilter: scrolled ? 'blur(20px)' : 'none',
-          borderBottom: scrolled ? '1px solid rgba(255,255,255,0.08)' : 'none',
+          background: scrolled ? 'rgba(15,23,42,0.98)' : 'rgba(15,23,42,0.95)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
           padding: '0 24px',
         }}
       >

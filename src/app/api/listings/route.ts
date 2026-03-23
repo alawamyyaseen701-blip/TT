@@ -12,23 +12,15 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
 
-    const filters: any[] = [{ field: 'status', op: '==', value: 'active' }];
-    if (type) filters.push({ field: 'type', op: '==', value: type });
+    // Only filter by status in Firestore (avoids composite index requirement)
+    let listings = await getDocs('listings', [
+      { field: 'status', op: '==', value: 'active' }
+    ]);
 
-    const orderMap: Record<string, { field: string; dir: 'asc' | 'desc' }> = {
-      newest: { field: 'created_at', dir: 'desc' },
-      oldest: { field: 'created_at', dir: 'asc' },
-      price_low: { field: 'price', dir: 'asc' },
-      price_high: { field: 'price', dir: 'desc' },
-    };
-    const order = orderMap[sortBy] || orderMap.newest;
+    // Filter by type in JS
+    if (type) listings = listings.filter(l => l.type === type);
 
-    let listings = await getDocs('listings', filters, {
-      orderBy: order.field,
-      direction: order.dir,
-    });
-
-    // Client-side search filter (Firestore doesn't support full-text search natively)
+    // Filter by search in JS
     if (search) {
       const s = search.toLowerCase();
       listings = listings.filter(l =>
@@ -38,27 +30,37 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Sort in JS
+    if (sortBy === 'price_low') listings.sort((a, b) => a.price - b.price);
+    else if (sortBy === 'price_high') listings.sort((a, b) => b.price - a.price);
+    else listings.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
     const total = listings.length;
     const paginated = listings.slice((page - 1) * limit, page * limit);
 
     // Attach seller info
     const enriched = await Promise.all(paginated.map(async (l) => {
-      const seller = await getDoc('users', l.seller_id);
-      return {
-        ...l,
-        seller_username: seller?.username,
-        seller_name: seller?.display_name,
-        seller_rating: seller?.rating,
-        seller_role: seller?.role,
-      };
+      try {
+        const seller = await getDoc('users', l.seller_id);
+        return {
+          ...l,
+          seller_username: seller?.username,
+          seller_name: seller?.display_name,
+          seller_rating: seller?.rating,
+          seller_role: seller?.role,
+        };
+      } catch {
+        return l;
+      }
     }));
 
     return apiSuccess({ listings: enriched, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } });
   } catch (e: any) {
     console.error('[listings GET]', e);
-    return apiError('خطأ في الخادم', 500);
+    return apiError('خطأ في الخادم: ' + (e?.message || 'unknown'), 500);
   }
 }
+
 
 // POST /api/listings
 export async function POST(req: NextRequest) {
