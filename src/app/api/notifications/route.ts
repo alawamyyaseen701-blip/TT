@@ -1,51 +1,37 @@
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
+import { getDocs, updateDoc, getDb } from '@/lib/firebase';
 
 // GET /api/notifications
 export async function GET(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
-
-    const { searchParams } = new URL(req.url);
-    const unreadOnly = searchParams.get('unread') === 'true';
-
-    const db = getDb();
-    const where = unreadOnly ? 'WHERE user_id = ? AND read_at IS NULL' : 'WHERE user_id = ?';
-    const notifications = db.prepare(`
-      SELECT * FROM notifications ${where}
-      ORDER BY created_at DESC LIMIT 50
-    `).all(user.userId);
-
-    const unreadCount = db.prepare('SELECT COUNT(*) as c FROM notifications WHERE user_id = ? AND read_at IS NULL').get(user.userId) as any;
-
-    return apiSuccess({ notifications, unreadCount: unreadCount.c });
-  } catch {
-    return apiError('خطأ في الخادم', 500);
-  }
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
+    const notifs = await getDocs('notifications',
+      [{ field: 'user_id', op: '==', value: auth.userId }],
+      { orderBy: 'created_at', direction: 'desc', limit: 50 }
+    );
+    const unreadCount = notifs.filter(n => !n.read_at).length;
+    return apiSuccess({ notifications: notifs, unreadCount });
+  } catch (e) { return apiError('خطأ في الخادم', 500); }
 }
 
-// PATCH /api/notifications — mark as read
+// PATCH /api/notifications — mark all as read
 export async function PATCH(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
-
-    const { ids } = await req.json();
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
+    const notifs = await getDocs('notifications', [
+      { field: 'user_id', op: '==', value: auth.userId },
+      { field: 'read_at', op: '==', value: null },
+    ]);
+    const now = new Date().toISOString();
     const db = getDb();
-
-    if (ids && Array.isArray(ids)) {
-      const placeholders = ids.map(() => '?').join(',');
-      db.prepare(`UPDATE notifications SET read_at = datetime('now') WHERE id IN (${placeholders}) AND user_id = ?`)
-        .run(...ids, user.userId);
-    } else {
-      // Mark all as read
-      db.prepare("UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL").run(user.userId);
+    const batch = db.batch();
+    for (const n of notifs) {
+      batch.update(db.collection('notifications').doc(n.id), { read_at: now });
     }
-
-    return apiSuccess({ message: 'تم التحديث' });
-  } catch {
-    return apiError('خطأ في الخادم', 500);
-  }
+    await batch.commit();
+    return apiSuccess({ message: 'تم تحديد الكل كمقروء' });
+  } catch (e) { return apiError('خطأ في الخادم', 500); }
 }

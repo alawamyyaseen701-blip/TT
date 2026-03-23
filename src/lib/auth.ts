@@ -5,7 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'trustdeal-super-secret-key-2025';
 const JWT_EXPIRES = '7d';
 
 export interface JWTPayload {
-  userId: number;
+  userId: string;
   username: string;
   role: string;
 }

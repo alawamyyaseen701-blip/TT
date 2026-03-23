@@ -1,114 +1,119 @@
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
-import { getTokenFromRequest, apiSuccess, apiError, generateDealId, calculateCommission } from '@/lib/auth';
+import { getTokenFromRequest, apiSuccess, apiError, calculateCommission, generateDealId } from '@/lib/auth';
+import { getDocs, createDoc, getDoc, updateDoc, batchWrite, setDoc } from '@/lib/firebase';
 
-// GET /api/deals — user's deals
+// GET /api/deals
 export async function GET(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
-
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status');
-    const role = searchParams.get('role') || 'all'; // buyer | seller | all
+    const role = searchParams.get('role') || 'all';
 
-    const db = getDb();
-    let where = `WHERE (d.buyer_id = ? OR d.seller_id = ?)`;
-    const params: any[] = [user.userId, user.userId];
+    let deals: any[] = [];
+    if (role === 'buyer' || role === 'all') {
+      const buyerDeals = await getDocs('deals', [{ field: 'buyer_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' });
+      deals.push(...buyerDeals);
+    }
+    if (role === 'seller' || role === 'all') {
+      const sellerDeals = await getDocs('deals', [{ field: 'seller_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' });
+      // Avoid duplicates
+      for (const d of sellerDeals) {
+        if (!deals.find(x => x.id === d.id)) deals.push(d);
+      }
+    }
 
-    if (role === 'buyer') { where = 'WHERE d.buyer_id = ?'; params.splice(0, 2, user.userId); }
-    if (role === 'seller') { where = 'WHERE d.seller_id = ?'; params.splice(0, 2, user.userId); }
-    if (status) { where += ' AND d.status = ?'; params.push(status); }
+    // Enrich with user + listing info
+    const enriched = await Promise.all(deals.map(async (d) => {
+      const [buyer, seller, listing] = await Promise.all([
+        getDoc('users', d.buyer_id),
+        getDoc('users', d.seller_id),
+        d.listing_id ? getDoc('listings', d.listing_id) : null,
+      ]);
+      return {
+        ...d,
+        buyer_username: buyer?.username, buyer_name: buyer?.display_name, buyer_rating: buyer?.rating,
+        seller_username: seller?.username, seller_name: seller?.display_name, seller_rating: seller?.rating,
+        listing_title: listing?.title, listing_type: listing?.type, platform: listing?.platform,
+      };
+    }));
 
-    const deals = db.prepare(`
-      SELECT
-        d.*,
-        l.title as listing_title, l.type as listing_type, l.platform,
-        buyer.username as buyer_username, buyer.display_name as buyer_name, buyer.rating as buyer_rating,
-        seller.username as seller_username, seller.display_name as seller_name, seller.rating as seller_rating
-      FROM deals d
-      LEFT JOIN listings l ON l.id = d.listing_id
-      JOIN users buyer ON buyer.id = d.buyer_id
-      JOIN users seller ON seller.id = d.seller_id
-      ${where}
-      ORDER BY d.created_at DESC
-    `).all(...params);
-
-    return apiSuccess({ deals });
-  } catch {
+    return apiSuccess({ deals: enriched });
+  } catch (e: any) {
+    console.error('[deals GET]', e);
     return apiError('خطأ في الخادم', 500);
   }
 }
 
-// POST /api/deals — create deal (buy listing)
+// POST /api/deals — create deal
 export async function POST(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
 
     const { listingId } = await req.json();
     if (!listingId) return apiError('معرف الإعلان مطلوب');
 
-    const db = getDb();
-    const listing = db.prepare("SELECT * FROM listings WHERE id = ? AND status = 'active'").get(listingId) as any;
-    if (!listing) return apiError('الإعلان غير موجود أو غير متاح', 404);
-    if (listing.seller_id === user.userId) return apiError('لا يمكنك شراء إعلانك بنفسك');
+    const listing = await getDoc('listings', listingId);
+    if (!listing || listing.status !== 'active') return apiError('الإعلان غير موجود أو غير متاح', 404);
+    if (listing.seller_id === auth.userId) return apiError('لا يمكنك شراء إعلانك بنفسك');
 
-    // Check buyer wallet balance
-    const buyer = db.prepare('SELECT * FROM users WHERE id = ?').get(user.userId) as any;
-    if (buyer.wallet_balance < listing.price) {
-      return apiError(`رصيدك غير كافٍ. الرصيد الحالي: $${buyer.wallet_balance.toFixed(2)}، المطلوب: $${listing.price}`);
+    const buyer = await getDoc('users', auth.userId);
+    if (!buyer || buyer.wallet_balance < listing.price) {
+      return apiError(`رصيدك غير كافٍ. الرصيد: $${buyer?.wallet_balance?.toFixed(2) || 0}، المطلوب: $${listing.price}`);
     }
 
     const { commission, sellerNet } = calculateCommission(listing.price);
     const dealId = generateDealId();
+    const autoRelease = new Date(Date.now() + 7 * 86400000).toISOString();
+    const now = new Date().toISOString();
 
-    const autoRelease = new Date();
-    autoRelease.setDate(autoRelease.getDate() + 7);
+    await setDoc('deals', dealId, {
+      listing_id: listingId,
+      buyer_id: auth.userId,
+      seller_id: listing.seller_id,
+      amount: listing.price,
+      commission, seller_net: sellerNet,
+      status: 'in_escrow',
+      auto_release_at: autoRelease,
+      delivery_data: null,
+      buyer_confirmed_at: null,
+      protection_expires_at: null,
+      payout_released: false,
+    });
 
-    // Atomic transaction
-    db.transaction(() => {
-      // Create deal
-      db.prepare(`
-        INSERT INTO deals (id, listing_id, buyer_id, seller_id, amount, commission, seller_net, status, auto_release_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'in_escrow', ?)
-      `).run(dealId, listingId, user.userId, listing.seller_id, listing.price, commission, sellerNet, autoRelease.toISOString());
+    // Deduct buyer wallet → escrow
+    await updateDoc('users', auth.userId, {
+      wallet_balance: (buyer.wallet_balance || 0) - listing.price,
+      escrow_balance: (buyer.escrow_balance || 0) + listing.price,
+    });
 
-      // Deduct from buyer wallet, add to escrow
-      db.prepare('UPDATE users SET wallet_balance = wallet_balance - ?, escrow_balance = escrow_balance + ? WHERE id = ?')
-        .run(listing.price, listing.price, user.userId);
+    // Mark listing sold
+    await updateDoc('listings', listingId, { status: 'sold' });
 
-      // Mark listing as in-deal
-      db.prepare("UPDATE listings SET status = 'sold' WHERE id = ?").run(listingId);
+    // Notify seller
+    await createDoc('notifications', {
+      user_id: listing.seller_id,
+      type: 'new_deal',
+      title: 'صفقة جديدة! 🎉',
+      body: `${buyer.display_name} اشترى إعلانك "${listing.title}"`,
+      link: `/deals/${dealId}`,
+      read_at: null,
+    });
 
-      // Create deal steps
-      const steps = [
-        { step: 1, label: 'تأكيد الطلب', completed_at: new Date().toISOString() },
-        { step: 2, label: 'الدفع إلى Escrow', completed_at: new Date().toISOString() },
-        { step: 3, label: 'بدء التسليم', completed_at: null },
-        { step: 4, label: 'مراجعة المشتري', completed_at: null },
-        { step: 5, label: 'تحرير الأموال', completed_at: null },
-      ];
-      for (const s of steps) {
-        db.prepare('INSERT INTO deal_steps (deal_id, step, label, completed_at) VALUES (?, ?, ?, ?)').run(dealId, s.step, s.label, s.completed_at);
-      }
-
-      // System message
-      db.prepare(`
-        INSERT INTO messages (deal_id, sender_id, receiver_id, content, type)
-        VALUES (?, ?, ?, ?, 'system')
-      `).run(dealId, user.userId, listing.seller_id, `تم إنشاء صفقة #${dealId} — المبلغ $${listing.price} محتجز في Escrow`);
-
-      // Notify seller
-      db.prepare(`
-        INSERT INTO notifications (user_id, type, title, body, link)
-        VALUES (?, 'new_deal', ?, ?, ?)
-      `).run(listing.seller_id, 'صفقة جديدة!', `${buyer.display_name} اشترى إعلانك "${listing.title}"`, `/deals/${dealId}`);
-    })();
+    // System message
+    await createDoc('messages', {
+      deal_id: dealId,
+      sender_id: auth.userId,
+      receiver_id: listing.seller_id,
+      content: `تم إنشاء صفقة #${dealId} — المبلغ $${listing.price} محتجز في Escrow`,
+      type: 'system',
+      read_at: null,
+    });
 
     return apiSuccess({ dealId, amount: listing.price, commission, sellerNet, status: 'in_escrow' }, 201);
   } catch (e: any) {
-    console.error(e);
+    console.error('[deals POST]', e);
     return apiError('خطأ في الخادم', 500);
   }
 }

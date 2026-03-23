@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb } from '@/lib/firebase';
 
 export async function GET() {
   try {
-    const db = getDb();
-    const result = db.prepare('SELECT COUNT(*) as users FROM users').get() as any;
+    const snap = await getDb().collection('users').limit(1).get();
     return NextResponse.json({
       status: 'ok',
-      database: 'connected',
-      users: result.users,
+      database: 'firebase-connected',
       timestamp: new Date().toISOString(),
     });
-  } catch {
-    return NextResponse.json({ status: 'error', database: 'disconnected' }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ status: 'error', database: 'disconnected', error: e.message }, { status: 500 });
   }
 }
