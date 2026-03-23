@@ -94,26 +94,29 @@ export async function POST(req: NextRequest) {
     const { type, platform, title, description, price, country, domain, followers, engagement, monthly_profit, age_months, monetized } = body;
 
     if (!type || !title || !description || !price) {
-      return apiError('النوع والعنوان والوصف والسعر مطلوبة');
+      const missing = [!type && 'type', !title && 'title', !description && 'description', !price && 'price'].filter(Boolean);
+      return apiError(`الحقول المطلوبة: ${missing.join(', ')}`);
     }
-    if (price <= 0) return apiError('السعر يجب أن يكون أكبر من صفر');
-    if (title.length < 10) return apiError('العنوان يجب أن يكون 10 أحرف على الأقل');
+    if (parseFloat(String(price)) <= 0) return apiError('السعر يجب أن يكون أكبر من صفر');
+    if (String(title).length < 5) return apiError('العنوان يجب أن يكون 5 أحرف على الأقل');
 
     const db = getDb();
     const result = db.prepare(`
       INSERT INTO listings
         (seller_id, type, platform, title, description, price, country, domain, followers, engagement, monthly_profit, age_months, monetized, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
     `).run(
-      user.userId, type, platform || null, title, description, price,
+      user.userId, type, platform || null, title, description, parseFloat(String(price)),
       country || 'SA', domain || null, followers || null,
-      engagement || null, monthly_profit || null, age_months || null,
+      engagement ? parseFloat(String(engagement)) : null,
+      monthly_profit ? parseFloat(String(monthly_profit)) : null,
+      age_months ? parseInt(String(age_months)) : null,
       monetized ? 1 : 0,
     ) as any;
 
-    return apiSuccess({ id: result.lastInsertRowid, status: 'pending', message: 'سيتم مراجعة الإعلان خلال 24 ساعة' }, 201);
-  } catch (e) {
-    console.error(e);
-    return apiError('خطأ في الخادم', 500);
+    return apiSuccess({ id: result.lastInsertRowid, status: 'active', message: 'تم نشر الإعلان بنجاح' }, 201);
+  } catch (e: any) {
+    console.error('[listings POST]', e?.message || e);
+    return apiError('خطأ في الخادم: ' + (e?.message || 'unknown'), 500);
   }
 }
