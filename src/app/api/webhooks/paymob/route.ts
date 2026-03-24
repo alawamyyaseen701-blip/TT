@@ -98,10 +98,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // Get deal_id from the Paymob order's merchant_order_id
-    const dealId = txn?.order?.merchant_order_id;
+    // Get deal_id: Intention API v2 uses special_reference; classic uses merchant_order_id
+    const dealId = txn?.order?.merchant_order_id
+      || txn?.extra?.special_reference
+      || txn?.source_data?.extra?.special_reference
+      || body?.obj?.special_reference;
+
     if (!dealId) {
-      console.error('[paymob-webhook] No merchant_order_id (deal_id)');
+      console.error('[paymob-webhook] No deal_id found in webhook payload', JSON.stringify(body).slice(0, 300));
       return NextResponse.json({ error: 'No deal_id' }, { status: 400 });
     }
 
@@ -112,6 +116,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`[paymob-webhook] Deal ${dealId} activated ✅`);
     return NextResponse.json({ received: true });
+
   } catch (e: any) {
     console.error('[paymob-webhook]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -43,7 +43,7 @@ function PaymentContent() {
       .finally(() => setLoading(false));
   }, [dealId]);
 
-  // ── Launch Paymob (card or wallet) ────────────────────────────
+  // ── Launch Paymob (card or wallet) → redirect to Unified Checkout ──
   const launchPaymob = async (gateway: 'paymob_card' | 'paymob_wallet') => {
     setRedirecting(gateway); setMsg('');
     try {
@@ -54,13 +54,13 @@ function PaymentContent() {
       });
       const data = await res.json();
       if (data.success && data.data.checkoutUrl) {
-        setIframeUrl(data.data.checkoutUrl);
-        setStep('paymob_iframe');
+        // Redirect to Paymob Unified Checkout page
+        window.location.href = data.data.checkoutUrl;
       } else {
         setMsg('❌ ' + (data.error || 'حدث خطأ — تأكد من إعداد مفاتيح Paymob في .env.local'));
+        setRedirecting('');
       }
-    } catch { setMsg('❌ خطأ في الاتصال بالخادم'); }
-    finally { setRedirecting(''); }
+    } catch { setMsg('❌ خطأ في الاتصال بالخادم'); setRedirecting(''); }
   };
 
   // ── Launch PayPal (redirect) ──────────────────────────────────
