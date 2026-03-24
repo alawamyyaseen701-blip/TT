@@ -22,11 +22,21 @@ export async function POST(
     const listing = await getDoc('listings', id);
     if (!listing) return apiError('الإعلان غير موجود', 404);
 
-    if (listing.allow_multiple_purchases) {
-      // Multi-purchase: increment counter, keep active
+    // Types that are ALWAYS single-purchase (sold after first buy):
+    // - subscription: اشتراك رقمي — حساب واحد لشخص واحد
+    // - social: حساب سوشيال — يُنقل لمشترٍ واحد
+    // - asset with subtype=domain: دومين — ملكية حصرية
+    const SINGLE_PURCHASE_TYPES = ['subscription', 'social'];
+    const isSinglePurchase =
+      SINGLE_PURCHASE_TYPES.includes(listing.type) ||
+      listing.asset_subtype === 'domain' ||
+      !listing.allow_multiple_purchases;
+
+    if (!isSinglePurchase) {
+      // Multi-purchase: website / app / store with a GitHub link
       await updateDoc('listings', id, {
         purchase_count: (listing.purchase_count || 0) + 1,
-        status: 'active', // stays active
+        status: 'active', // stays active for more buyers
       });
       return apiSuccess({
         multi: true,
@@ -35,7 +45,7 @@ export async function POST(
         message: 'تم الشراء بنجاح — يمكنك تحميل الكود من الرابط',
       });
     } else {
-      // Single-purchase: mark as sold
+      // Single-purchase: mark as sold immediately
       await updateDoc('listings', id, {
         status: 'sold',
         purchase_count: 1,
@@ -44,13 +54,16 @@ export async function POST(
       return apiSuccess({
         multi: false,
         purchase_count: 1,
-        message: 'تم البيع — الإعلان لم يعد متاحاً',
+        message: listing.type === 'subscription'
+          ? 'تم الشراء — الاشتراك لم يعد متاحاً لأشخاص آخرين'
+          : 'تم البيع — الإعلان لم يعد متاحاً',
       });
     }
   } catch (e: any) {
     return apiError('خطأ في الخادم: ' + (e?.message || ''), 500);
   }
 }
+
 
 /**
  * GET /api/listings/[id]/purchase

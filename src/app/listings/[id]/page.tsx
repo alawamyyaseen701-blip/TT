@@ -149,12 +149,18 @@ export default function ListingDetailPage() {
             <span style={{ color: '#64748B' }}>{listing.title?.slice(0, 40)}</span>
           </div>
 
-          {/* Sold banner */}
-          {listing.status === 'sold' && (
+          {/* Sold / single-purchase banners */}
+          {listing.status === 'sold' ? (
             <div style={{ padding: '14px 20px', borderRadius: 14, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#DC2626', fontWeight: 700, fontSize: 14, marginBottom: 24 }}>
-              🔴 هذا الإعلان تم بيعه ولم يعد متاحاً للشراء
+              🔴 {listing.type === 'subscription'
+                ? 'هذا الاشتراك تم بيعه ولم يعد متاحاً'
+                : 'هذا الإعلان تم بيعه ولم يعد متاحاً للشراء'}
             </div>
-          )}
+          ) : listing.type === 'subscription' ? (
+            <div style={{ padding: '12px 20px', borderRadius: 14, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)', color: '#92400E', fontWeight: 600, fontSize: 13, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>⚠️</span> هذا الاشتراك يُباع مرة واحدة فقط — لشخص واحد. سيُزال من الموقع بعد أول عملية شراء.
+            </div>
+          ) : null}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 32, alignItems: 'start' }}>
 
