@@ -307,64 +307,46 @@ export default function DealDetailPage() {
                 })}
               </div>
 
-              {/* ─── BUYER: Payment Methods (pending_payment) ───────── */}
-              {isBuyer && deal.status === 'pending_payment' && (
+              {/* ─── BUYER: Pay Now button ─────────────────────────── */}
+              {isBuyer && ['pending_payment', 'payment_sent'].includes(deal.status) && (
                 <div style={{ padding: '24px', borderTop: '2px solid #F59E0B', background: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: 22 }}>💳</span>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: '#92400E' }}>أكمل الدفع لتفعيل الصفقة</div>
-                  </div>
-                  <p style={{ fontSize: 13, color: '#78350F', marginBottom: 20, lineHeight: 1.7 }}>
-                    أرسل مبلغ <strong>${deal.amount}</strong> عبر إحدى الطرق أدناه، ثم اضغط "تأكيد إرسال الدفعة" وسيقوم فريقنا بتفعيل الصفقة خلال دقائق.
-                  </p>
-
-                  {/* Payment cards */}
-                  {[
-                    {
-                      id: 'usdt-trc20', icon: '💎', name: 'USDT (TRC20)', tag: 'Tron Network — الأسرع والأرخص',
-                      address: 'TRx9Kz2mBQYHxyz1234567890USDT', note: 'شبكة TRC20 فقط — لا ترسل ERC20 على هذا العنوان',
-                      color: '#10B981', bg: '#F0FDF4',
-                    },
-                    {
-                      id: 'usdt-bep20', icon: '🟡', name: 'USDT (BEP20)', tag: 'Binance Smart Chain',
-                      address: '0xABc123456789DEF0usdt1234567BEP20', note: 'شبكة BSC (BEP20) — تأكد من اختيار الشبكة الصح',
-                      color: '#F59E0B', bg: '#FFFBEB',
-                    },
-                    {
-                      id: 'binance', icon: '🔶', name: 'Binance Pay', tag: 'بدون رسوم — فوري',
-                      address: 'trustdeal@binance', note: 'أرسل عبر Binance Pay بالإيميل أو رقم الـ ID',
-                      color: '#F97316', bg: '#FFF7ED',
-                    },
-                    {
-                      id: 'paypal', icon: '🅿️', name: 'PayPal', tag: 'للدول المدعومة — رسوم 3%',
-                      address: 'payments@trustdeal.com', note: 'أرسل كـ "Friends & Family" أو أضف 3% رسوم',
-                      color: '#2563EB', bg: '#EFF6FF',
-                    },
-                    {
-                      id: 'wise', icon: '🌍', name: 'Wise Transfer', tag: 'تحويل بنكي دولي',
-                      address: 'payments@trustdeal.com', note: 'في ملاحظة التحويل اكتب: Deal #' + String(deal.id).slice(0, 8),
-                      color: '#0D9488', bg: '#F0FDFA',
-                    },
-                  ].map((m) => (
-                    <PaymentCard key={m.id} method={m} />
-                  ))}
-
-                  {/* Confirm payment sent */}
-                  <div style={{ marginTop: 20, padding: '16px 20px', borderRadius: 14, background: 'white', border: '1.5px solid #FCD34D' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 10 }}>
-                      ✅ بعد إرسال الدفعة اضغط الزر أدناه وسنتحقق خلال دقائق
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontSize: 24 }}>💳</span>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: '#92400E' }}>
+                      {deal.status === 'payment_sent' ? '⏳ جاري التحقق من دفعتك...' : 'أكمل الدفع لتفعيل الصفقة'}
                     </div>
-                    <button
-                      id="confirm-payment-btn"
-                      onClick={() => handleAction('confirm_payment')}
-                      disabled={actionLoading}
-                      style={{ width: '100%', padding: '14px', border: 'none', borderRadius: 12, background: actionLoading ? '#CBD5E1' : 'linear-gradient(135deg, #F59E0B, #D97706)', color: 'white', fontWeight: 900, fontSize: 15, cursor: actionLoading ? 'not-allowed' : 'pointer', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 4px 16px rgba(245,158,11,0.3)' }}
-                    >
-                      {actionLoading ? '⏳ جاري الإرسال...' : '📤 تأكيد إرسال الدفعة — سيتم تفعيل الصفقة'}
-                    </button>
                   </div>
+                  {deal.status === 'payment_sent' ? (
+                    <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(245,158,11,0.12)', border: '1px solid #FCD34D', fontSize: 13, color: '#92400E', lineHeight: 1.7 }}>
+                      ✅ استلمنا إشعار دفعتك — جاري التحقق على البلوك تشين أو بوابة الدفع.<br />
+                      سيتم تفعيل الصفقة <strong>خلال 30 دقيقة</strong> وستصلك إشعار فور التأكيد.
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: 13, color: '#78350F', marginBottom: 16, lineHeight: 1.7 }}>
+                        ادفع <strong>${deal.amount}</strong> عبر بوابة الدفع الآمنة — بطاقة بنكية، PayPal، أو USDT.<br />
+                        الأموال تذهب مباشرة لحساب الضمان ✅
+                      </p>
+                      <Link href={`/payment/${deal.id}`}>
+                        <button
+                          id="go-to-payment-btn"
+                          style={{ width: '100%', padding: '16px', border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #1E3A8A, #2563EB)', color: 'white', fontWeight: 900, fontSize: 16, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 6px 20px rgba(30,58,138,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                          💳 ادفع الآن ${deal.amount} — مؤمَّن 100%
+                          <span style={{ fontSize: 12, opacity: 0.8 }}>→</span>
+                        </button>
+                      </Link>
+                      <div style={{ marginTop: 10, display: 'flex', gap: 12, justifyContent: 'center', fontSize: 12, color: '#92400E' }}>
+                        <span>💳 Visa / Mastercard</span>
+                        <span>🅿️ PayPal</span>
+                        <span>💎 USDT</span>
+                        <span>🔶 Binance</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
+
+
 
               {/* ─── SELLER: Upload Credentials ─────────────────── */}
               {isSeller && ['in_escrow', 'in_delivery'].includes(deal.status) && (
