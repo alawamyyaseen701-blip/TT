@@ -15,12 +15,14 @@ export async function PATCH(req: NextRequest) {
     const withUserId = searchParams.get('with');
     if (!withUserId) return apiError('with param مطلوب');
 
-    // Fetch unread messages sent BY withUserId TO current user
-    const unread = await getDocs('messages', [
-      { field: 'sender_id',   op: '==', value: withUserId },
-      { field: 'receiver_id', op: '==', value: auth.userId },
-      { field: 'read_at',     op: '==', value: null },
+    // Use single-field filter only (avoids composite index requirement)
+    // Then filter receiver_id and read_at in JS
+    const fromSender = await getDocs('messages', [
+      { field: 'sender_id', op: '==', value: withUserId },
     ]);
+    const unread = fromSender.filter((msg: any) =>
+      msg.receiver_id === auth.userId && !msg.read_at
+    );
 
     const now = new Date().toISOString();
     await Promise.all(unread.map((msg: any) =>

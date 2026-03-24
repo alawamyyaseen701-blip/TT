@@ -3,8 +3,8 @@ import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
 import { getDocs, createDoc, getDoc } from '@/lib/firebase';
 
 // GET /api/messages
-// ?with=userId  → get messages between current user and that user
-// (no params)   → get conversations list (grouped by other user)
+// ?with=userId  → messages between me and that user (sorted in JS)
+// (no params)   → conversations list grouped by other user
 export async function GET(req: NextRequest) {
   try {
     const auth = getTokenFromRequest(req);
@@ -16,18 +16,19 @@ export async function GET(req: NextRequest) {
 
     // ── Messages with a specific user ──
     if (withUserId) {
+      // Fetch without orderBy to avoid composite index requirement
       const [sent, received] = await Promise.all([
         getDocs('messages', [
           { field: 'sender_id',   op: '==', value: auth.userId },
           { field: 'receiver_id', op: '==', value: withUserId },
-        ], { orderBy: 'created_at', direction: 'asc' }),
+        ]),
         getDocs('messages', [
           { field: 'sender_id',   op: '==', value: withUserId },
           { field: 'receiver_id', op: '==', value: auth.userId },
-        ], { orderBy: 'created_at', direction: 'asc' }),
+        ]),
       ]);
 
-      // Merge and sort chronologically
+      // Merge and sort chronologically in JS
       const all = [...sent, ...received].sort(
         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
@@ -37,34 +38,37 @@ export async function GET(req: NextRequest) {
     // ── Deal messages ──
     if (dealId) {
       const messages = await getDocs('messages',
-        [{ field: 'deal_id', op: '==', value: dealId }],
-        { orderBy: 'created_at', direction: 'asc' }
+        [{ field: 'deal_id', op: '==', value: dealId }]
       );
-      return apiSuccess({ messages });
+      const sorted = messages.sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      return apiSuccess({ messages: sorted });
     }
 
-    // ── Conversations list (all messages involving current user) ──
+    // ── Conversations list ──
+    // Fetch all messages involving current user (two simple queries, no composite index)
     const [sent, received] = await Promise.all([
-      getDocs('messages', [{ field: 'sender_id',   op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' }),
-      getDocs('messages', [{ field: 'receiver_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' }),
+      getDocs('messages', [{ field: 'sender_id',   op: '==', value: auth.userId }]),
+      getDocs('messages', [{ field: 'receiver_id', op: '==', value: auth.userId }]),
     ]);
 
-    // Group into conversations by other user ID
-    const convMap = new Map<string, any>();
+    // Sort newest first in JS
     const allMsgs = [...sent, ...received].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
+    // Group into conversations keyed by other user ID
+    const convMap = new Map<string, any>();
     for (const msg of allMsgs) {
       const otherId = msg.sender_id === auth.userId ? msg.receiver_id : msg.sender_id;
       if (!convMap.has(otherId)) {
         convMap.set(otherId, {
-          other_user_id:    otherId,
-          last_message:     msg.content,
-          last_message_at:  msg.created_at,
-          unread_count:     (!msg.read_at && msg.receiver_id === auth.userId) ? 1 : 0,
-          deal_id:          msg.deal_id || null,
-          // Will be filled below
+          other_user_id:      otherId,
+          last_message:       msg.content,
+          last_message_at:    msg.created_at,
+          unread_count:       (!msg.read_at && msg.receiver_id === auth.userId) ? 1 : 0,
+          deal_id:            msg.deal_id || null,
           other_display_name: null,
           other_username:     null,
         });
@@ -73,7 +77,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Enrich with user info
+    // Enrich with user info (parallel)
     const conversations = await Promise.all(
       Array.from(convMap.values()).map(async (conv) => {
         try {
@@ -82,7 +86,7 @@ export async function GET(req: NextRequest) {
             conv.other_display_name = user.display_name || user.username;
             conv.other_username     = user.username;
           }
-        } catch { /* user fetch failed */ }
+        } catch { /* skip if user not found */ }
         return conv;
       })
     );
@@ -105,7 +109,7 @@ export async function POST(req: NextRequest) {
     if (String(auth.userId) === String(receiverId)) return apiError('لا يمكنك مراسلة نفسك');
 
     const id = await createDoc('messages', {
-      deal_id:     dealId   || null,
+      deal_id:     dealId    || null,
       sender_id:   auth.userId,
       receiver_id: receiverId,
       content:     content.trim(),
