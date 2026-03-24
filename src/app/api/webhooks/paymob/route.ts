@@ -98,23 +98,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // Get deal_id: Intention API v2 uses special_reference; classic uses merchant_order_id
-    const dealId = txn?.order?.merchant_order_id
+    // Get deal_id from webhook payload
+    // Intention API v2 → special_reference = `${dealId}_${timestamp}`
+    // Classic API → merchant_order_id = dealId
+    const rawRef: string = txn?.order?.merchant_order_id
       || txn?.extra?.special_reference
       || txn?.source_data?.extra?.special_reference
-      || body?.obj?.special_reference;
+      || body?.obj?.special_reference
+      || '';
+
+    if (!rawRef) {
+      console.error('[paymob-webhook] No reference found', JSON.stringify(body).slice(0, 300));
+      return NextResponse.json({ error: 'No reference' }, { status: 400 });
+    }
+
+    // If reference has underscore+timestamp suffix (Intention API v2), extract dealId
+    // Or search Firestore by paymob_reference field
+    let dealId = rawRef;
+    if (rawRef.includes('_')) {
+      // Try direct extract first (format: DEALID_TIMESTAMP)
+      const lastUnderscore = rawRef.lastIndexOf('_');
+      const potentialId    = rawRef.slice(0, lastUnderscore);
+      const potentialTs    = rawRef.slice(lastUnderscore + 1);
+      // If the suffix looks like a timestamp, extract dealId
+      if (/^\d{10,}$/.test(potentialTs)) {
+        dealId = potentialId;
+      } else {
+        // Search by paymob_reference field
+        const { getDocs } = await import('@/lib/firebase');
+        const deals = await getDocs('deals', [{ field: 'paymob_reference', op: '==', value: rawRef }], { limit: 1 });
+        if (deals.length > 0) dealId = deals[0].id;
+      }
+    }
 
     if (!dealId) {
-      console.error('[paymob-webhook] No deal_id found in webhook payload', JSON.stringify(body).slice(0, 300));
+      console.error('[paymob-webhook] Could not resolve deal from reference:', rawRef);
       return NextResponse.json({ error: 'No deal_id' }, { status: 400 });
     }
 
     await activateDeal(dealId, {
       paymob_transaction_id: txn.id,
       paymob_order_id:       txn.order?.id,
+      paymob_reference:      rawRef,
     });
 
-    console.log(`[paymob-webhook] Deal ${dealId} activated ✅`);
+    console.log(`[paymob-webhook] Deal ${dealId} activated ✅ (ref: ${rawRef})`);
     return NextResponse.json({ received: true });
 
   } catch (e: any) {

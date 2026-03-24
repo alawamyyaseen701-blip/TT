@@ -104,9 +104,19 @@ export async function POST(req: NextRequest) {
           503
         );
 
-      const { clientSecret } = await createPaymobIntention(amountCents, dealId, integId, buyerDoc);
+      // Make special_reference unique per attempt (Paymob rejects duplicates)
+      const pmRef = `${dealId}_${Date.now()}`;
 
-      // Unified Checkout URL — no iframe ID needed
+      const { clientSecret } = await createPaymobIntention(amountCents, pmRef, integId, buyerDoc);
+
+      // Store the paymob reference in the deal so webhook can find the deal
+      await updateDoc('deals', dealId, {
+        payment_gateway:      gateway,
+        payment_initiated_at: new Date().toISOString(),
+        paymob_reference:     pmRef,
+      });
+
+      // Unified Checkout URL
       checkoutUrl = `https://accept.paymob.com/unifiedcheckout/?publicKey=${PUBLIC_KEY}&clientSecret=${clientSecret}`;
     }
 
@@ -144,9 +154,12 @@ export async function POST(req: NextRequest) {
 
     if (!checkoutUrl) return apiError('فشل إنشاء جلسة الدفع', 500);
 
-    await updateDoc('deals', dealId, {
-      payment_gateway: gateway, payment_initiated_at: new Date().toISOString(),
-    });
+    // For PayPal, save gateway info (Paymob already saved in its block above)
+    if (gateway === 'paypal') {
+      await updateDoc('deals', dealId, {
+        payment_gateway: gateway, payment_initiated_at: new Date().toISOString(),
+      });
+    }
 
     return apiSuccess({ checkoutUrl });
   } catch (e: any) {
