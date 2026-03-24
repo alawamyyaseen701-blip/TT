@@ -48,7 +48,7 @@ function MessagesContent() {
 
   const token       = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
   const currentUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
-  const headers     = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   /* ── Fetch conversations ── */
   const fetchConversations = useCallback(async () => {
