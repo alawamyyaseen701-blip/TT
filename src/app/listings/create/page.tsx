@@ -125,18 +125,53 @@ export default function CreateListingPage() {
     if (!localStorage.getItem('token')) router.replace('/auth/login?redirect=/listings/create');
   }, []);
 
-  // Image upload handler
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(file => {
+  // ── Image compression ──────────────────────────────────────────────
+  // Firestore doc limit = 1MB. We compress each image to max 600px / JPEG 70%
+  // → each image ≈ 30–60KB base64 → safe for up to 6 images
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = ev => {
-        setUploadedImages(prev => [...prev, ev.target?.result as string]);
-        setUseDefault(false);
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 600; // max dimension px
+          let { width, height } = img;
+          if (width > MAX || height > MAX) {
+            if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
+            else                { width  = Math.round((width  * MAX) / height); height = MAX; }
+          }
+          const canvas  = document.createElement('canvas');
+          canvas.width  = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.70));
+        };
+        img.onerror = reject;
+        img.src = ev.target?.result as string;
       };
+      reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   };
+
+  // Image upload handler — compress before adding
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (uploadedImages.length + files.length > 5) {
+      setError('يمكنك رفع 5 صور كحد أقصى'); return;
+    }
+    setUseDefault(false);
+    for (const file of files) {
+      try {
+        const compressed = await compressImage(file);
+        setUploadedImages(prev => [...prev, compressed]);
+      } catch {
+        setError('فشل في معالجة الصورة، جرب صورة أخرى');
+      }
+    }
+  };
+
 
   const toggleDefaultImg = (emoji: string) => {
     setSelectedDefaults(prev =>

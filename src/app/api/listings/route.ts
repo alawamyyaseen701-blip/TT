@@ -84,6 +84,18 @@ export async function POST(req: NextRequest) {
     if (parseFloat(String(price)) <= 0) return apiError('السعر يجب أن يكون أكبر من صفر');
     if (String(title).length < 5) return apiError('العنوان يجب أن يكون 5 أحرف على الأقل');
 
+    // ── Image size guard (Firestore doc limit = 1MB) ──────────────────
+    // Max 150KB per image in base64 chars (~112KB binary) → safe for 5 images
+    const MAX_IMG_B64 = 150 * 1024;
+    const rawImages: string[] = images || [];
+    const safeImages = rawImages.filter((img: string) => {
+      if (typeof img === 'string' && img.startsWith('data:')) return img.length <= MAX_IMG_B64;
+      return true; // emoji icons are fine
+    });
+    if (safeImages.length === 0 && rawImages.length > 0) {
+      return apiError('الصور كبيرة جداً — يرجى اختيار صور أصغر (حد أقصى 150KB لكل صورة)');
+    }
+
     const id = await createDoc('listings', {
       seller_id: auth.userId,
       type,
@@ -104,7 +116,7 @@ export async function POST(req: NextRequest) {
       tech_stack: tech_stack || null,
       delivery: delivery || null,
       includes: includes || null,
-      images: images || [],
+      images: safeImages,
       // Credentials stored encrypted — only released when deal completes
       credentials: credentials ? JSON.stringify(credentials) : null,
       // Asset type logic
