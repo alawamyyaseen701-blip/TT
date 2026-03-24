@@ -69,7 +69,12 @@ export async function POST(req: NextRequest) {
     if (!auth) return apiError('يجب تسجيل الدخول أولاً', 401);
 
     const body = await req.json();
-    const { type, platform, title, description, price, country, domain, followers, engagement, monthly_profit, age_months, monetized } = body;
+    const {
+      type, platform, title, description, price, country,
+      domain, followers, engagement, monthly_profit, monthly_revenue,
+      age_months, monetized, plan, duration, tech_stack,
+      delivery, includes, images, credentials,
+    } = body;
 
     if (!type || !title || !description || !price) {
       const missing = [!type && 'type', !title && 'title', !description && 'description', !price && 'price'].filter(Boolean);
@@ -80,16 +85,27 @@ export async function POST(req: NextRequest) {
 
     const id = await createDoc('listings', {
       seller_id: auth.userId,
-      type, platform: platform || null,
-      title, description,
+      type,
+      platform: platform || null,
+      title,
+      description,
       price: parseFloat(String(price)),
-      country: country || 'SA',
+      country: country || null,
       domain: domain || null,
       followers: followers || null,
       engagement: engagement ? parseFloat(String(engagement)) : null,
       monthly_profit: monthly_profit ? parseFloat(String(monthly_profit)) : null,
+      monthly_revenue: monthly_revenue ? parseFloat(String(monthly_revenue)) : null,
       age_months: age_months ? parseInt(String(age_months)) : null,
       monetized: monetized || false,
+      plan: plan || null,
+      duration: duration || null,
+      tech_stack: tech_stack || null,
+      delivery: delivery || null,
+      includes: includes || null,
+      images: images || [],
+      // Credentials stored encrypted — only released when deal completes
+      credentials: credentials ? JSON.stringify(credentials) : null,
       status: 'active',
       featured: false,
       views: 0,
@@ -102,3 +118,4 @@ export async function POST(req: NextRequest) {
     return apiError('خطأ في الخادم: ' + (e?.message || 'unknown'), 500);
   }
 }
+
