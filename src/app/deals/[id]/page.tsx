@@ -32,6 +32,34 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   refunded: { label: 'مسترد', color: '#64748B' },
 };
 
+/* ── Payment Method Card ─────────────────────────────────────────── */
+function PaymentCard({ method }: { method: { id: string; icon: string; name: string; tag: string; address: string; note: string; color: string; bg: string } }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(method.address).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+  return (
+    <div style={{ marginBottom: 10, borderRadius: 14, border: `1.5px solid ${method.color}30`, background: method.bg, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 24 }}>{method.icon}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, color: '#0F172A', fontSize: 14 }}>{method.name}</div>
+          <div style={{ fontSize: 11, color: method.color, fontWeight: 600 }}>{method.tag}</div>
+        </div>
+      </div>
+      <div style={{ padding: '0 16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', border: `1px solid ${method.color}40`, borderRadius: 10, padding: '8px 12px', marginBottom: 6 }}>
+          <span style={{ flex: 1, fontSize: 12, fontFamily: 'monospace', color: '#0F172A', wordBreak: 'break-all' }}>{method.address}</span>
+          <button onClick={copy} style={{ flexShrink: 0, padding: '4px 12px', borderRadius: 8, border: 'none', background: copied ? '#10B981' : method.color, color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', transition: 'background 0.2s' }}>
+            {copied ? '✓ تم' : 'نسخ'}
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: '#64748B' }}>⚠️ {method.note}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function DealDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -278,6 +306,65 @@ export default function DealDetailPage() {
                   );
                 })}
               </div>
+
+              {/* ─── BUYER: Payment Methods (pending_payment) ───────── */}
+              {isBuyer && deal.status === 'pending_payment' && (
+                <div style={{ padding: '24px', borderTop: '2px solid #F59E0B', background: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 22 }}>💳</span>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: '#92400E' }}>أكمل الدفع لتفعيل الصفقة</div>
+                  </div>
+                  <p style={{ fontSize: 13, color: '#78350F', marginBottom: 20, lineHeight: 1.7 }}>
+                    أرسل مبلغ <strong>${deal.amount}</strong> عبر إحدى الطرق أدناه، ثم اضغط "تأكيد إرسال الدفعة" وسيقوم فريقنا بتفعيل الصفقة خلال دقائق.
+                  </p>
+
+                  {/* Payment cards */}
+                  {[
+                    {
+                      id: 'usdt-trc20', icon: '💎', name: 'USDT (TRC20)', tag: 'Tron Network — الأسرع والأرخص',
+                      address: 'TRx9Kz2mBQYHxyz1234567890USDT', note: 'شبكة TRC20 فقط — لا ترسل ERC20 على هذا العنوان',
+                      color: '#10B981', bg: '#F0FDF4',
+                    },
+                    {
+                      id: 'usdt-bep20', icon: '🟡', name: 'USDT (BEP20)', tag: 'Binance Smart Chain',
+                      address: '0xABc123456789DEF0usdt1234567BEP20', note: 'شبكة BSC (BEP20) — تأكد من اختيار الشبكة الصح',
+                      color: '#F59E0B', bg: '#FFFBEB',
+                    },
+                    {
+                      id: 'binance', icon: '🔶', name: 'Binance Pay', tag: 'بدون رسوم — فوري',
+                      address: 'trustdeal@binance', note: 'أرسل عبر Binance Pay بالإيميل أو رقم الـ ID',
+                      color: '#F97316', bg: '#FFF7ED',
+                    },
+                    {
+                      id: 'paypal', icon: '🅿️', name: 'PayPal', tag: 'للدول المدعومة — رسوم 3%',
+                      address: 'payments@trustdeal.com', note: 'أرسل كـ "Friends & Family" أو أضف 3% رسوم',
+                      color: '#2563EB', bg: '#EFF6FF',
+                    },
+                    {
+                      id: 'wise', icon: '🌍', name: 'Wise Transfer', tag: 'تحويل بنكي دولي',
+                      address: 'payments@trustdeal.com', note: 'في ملاحظة التحويل اكتب: Deal #' + String(deal.id).slice(0, 8),
+                      color: '#0D9488', bg: '#F0FDFA',
+                    },
+                  ].map((m) => (
+                    <PaymentCard key={m.id} method={m} />
+                  ))}
+
+                  {/* Confirm payment sent */}
+                  <div style={{ marginTop: 20, padding: '16px 20px', borderRadius: 14, background: 'white', border: '1.5px solid #FCD34D' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 10 }}>
+                      ✅ بعد إرسال الدفعة اضغط الزر أدناه وسنتحقق خلال دقائق
+                    </div>
+                    <button
+                      id="confirm-payment-btn"
+                      onClick={() => handleAction('confirm_payment')}
+                      disabled={actionLoading}
+                      style={{ width: '100%', padding: '14px', border: 'none', borderRadius: 12, background: actionLoading ? '#CBD5E1' : 'linear-gradient(135deg, #F59E0B, #D97706)', color: 'white', fontWeight: 900, fontSize: 15, cursor: actionLoading ? 'not-allowed' : 'pointer', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 4px 16px rgba(245,158,11,0.3)' }}
+                    >
+                      {actionLoading ? '⏳ جاري الإرسال...' : '📤 تأكيد إرسال الدفعة — سيتم تفعيل الصفقة'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* ─── SELLER: Upload Credentials ─────────────────── */}
               {isSeller && ['in_escrow', 'in_delivery'].includes(deal.status) && (
