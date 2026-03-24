@@ -59,59 +59,53 @@ export async function POST(req: NextRequest) {
     if (listing.seller_id === auth.userId) return apiError('لا يمكنك شراء إعلانك بنفسك');
 
     const buyer = await getDoc('users', auth.userId);
-    if (!buyer || buyer.wallet_balance < listing.price) {
-      return apiError(`رصيدك غير كافٍ. الرصيد: $${buyer?.wallet_balance?.toFixed(2) || 0}، المطلوب: $${listing.price}`);
-    }
+    if (!buyer) return apiError('المستخدم غير موجود', 404);
+
+    // Note: We no longer block purchases due to wallet balance.
+    // The deal starts as pending_payment — buyer is redirected to pay.
+    // Wallet/escrow deduction happens only after payment is confirmed.
 
     const { commission, sellerNet } = calculateCommission(listing.price);
     const dealId = generateDealId();
-    const autoRelease = new Date(Date.now() + 7 * 86400000).toISOString();
     const now = new Date().toISOString();
 
     await setDoc('deals', dealId, {
-      listing_id: listingId,
-      buyer_id: auth.userId,
-      seller_id: listing.seller_id,
-      amount: listing.price,
-      commission, seller_net: sellerNet,
-      status: 'in_escrow',
-      auto_release_at: autoRelease,
-      delivery_data: null,
-      buyer_confirmed_at: null,
+      listing_id:           listingId,
+      buyer_id:             auth.userId,
+      seller_id:            listing.seller_id,
+      amount:               listing.price,
+      commission,
+      seller_net:           sellerNet,
+      // Deal starts as pending until buyer completes payment
+      status:               'pending_payment',
+      auto_release_at:      null,
+      delivery_data:        null,
+      buyer_confirmed_at:   null,
       protection_expires_at: null,
-      payout_released: false,
+      payout_released:      false,
     });
-
-    // Deduct buyer wallet → escrow
-    await updateDoc('users', auth.userId, {
-      wallet_balance: (buyer.wallet_balance || 0) - listing.price,
-      escrow_balance: (buyer.escrow_balance || 0) + listing.price,
-    });
-
-    // Mark listing sold
-    await updateDoc('listings', listingId, { status: 'sold' });
 
     // Notify seller
     await createDoc('notifications', {
       user_id: listing.seller_id,
-      type: 'new_deal',
-      title: 'صفقة جديدة! 🎉',
-      body: `${buyer.display_name} اشترى إعلانك "${listing.title}"`,
-      link: `/deals/${dealId}`,
+      type:    'new_deal',
+      title:   'طلب شراء جديد! 🎉',
+      body:    `${buyer.display_name || buyer.username} طلب شراء إعلانك "${listing.title}" — بانتظار الدفع`,
+      link:    `/deals/${dealId}`,
       read_at: null,
     });
 
-    // System message
+    // System message in chat
     await createDoc('messages', {
-      deal_id: dealId,
-      sender_id: auth.userId,
+      deal_id:     dealId,
+      sender_id:   auth.userId,
       receiver_id: listing.seller_id,
-      content: `تم إنشاء صفقة #${dealId} — المبلغ $${listing.price} محتجز في Escrow`,
-      type: 'system',
-      read_at: null,
+      content:     `تم إنشاء طلب شراء #${dealId} للإعلان "${listing.title}" — المبلغ: $${listing.price} — بانتظار اكتمال الدفع`,
+      type:        'system',
+      read_at:     null,
     });
 
-    return apiSuccess({ dealId, amount: listing.price, commission, sellerNet, status: 'in_escrow' }, 201);
+    return apiSuccess({ dealId, amount: listing.price, commission, sellerNet, status: 'pending_payment' }, 201);
   } catch (e: any) {
     console.error('[deals POST]', e);
     return apiError('خطأ في الخادم', 500);

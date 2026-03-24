@@ -377,7 +377,9 @@ export default function ListingDetailPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
           <div style={{ background: 'white', borderRadius: 24, padding: 32, width: '100%', maxWidth: 480, boxShadow: '0 40px 80px rgba(0,0,0,0.3)' }}>
             <h2 style={{ fontSize: 22, fontWeight: 900, color: '#0F172A', marginBottom: 4 }}>تأكيد الشراء الآمن</h2>
-            <p style={{ fontSize: 14, color: '#64748B', marginBottom: 24, lineHeight: 1.6 }}>سيتم تجميد المبلغ في Escrow حتى تؤكد استلام المنتج بالكامل</p>
+            <p style={{ fontSize: 14, color: '#64748B', marginBottom: 24, lineHeight: 1.6 }}>
+              سيتم إنشاء الصفقة وتحويلك لإتمام الدفع عبر Escrow — المبلغ محتجز حتى تستلم المنتج وتؤكد
+            </p>
 
             <div style={{ padding: 16, borderRadius: 16, background: '#F8FAFC', marginBottom: 20 }}>
               <div style={{ fontWeight: 700, color: '#0F172A', marginBottom: 12, fontSize: 14 }}>{listing.title}</div>
