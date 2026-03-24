@@ -99,7 +99,8 @@ export default function CreateListingPage() {
     // Subscription
     plan: '', duration: '', sub_platform: '',
     // Asset
-    domain: '', tech_stack: '', monthly_revenue: '',
+    domain: '', tech_stack: '', monthly_revenue: '', github_url: '',
+    asset_subtype: '' as 'domain' | 'website' | 'app' | 'store' | '',
     // Store/service
     delivery: '', includes: '',
     // Credentials (encrypted / shown only when deal completes)
@@ -115,7 +116,10 @@ export default function CreateListingPage() {
 
   const f = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
   const selectedCat = CATEGORIES.find(c => c.id === category);
-  const needCredentials = ['social', 'subscription', 'asset'].includes(category);
+  // Domain needs credentials (transfer). Websites/apps/stores use GitHub link instead.
+  const isDomain = category === 'asset' && form.asset_subtype === 'domain';
+  const isMultiPurchaseAsset = category === 'asset' && ['website', 'app', 'store'].includes(form.asset_subtype);
+  const needCredentials = ['social', 'subscription'].includes(category) || isDomain;
 
   useEffect(() => {
     if (!localStorage.getItem('token')) router.replace('/auth/login?redirect=/listings/create');
@@ -172,7 +176,13 @@ export default function CreateListingPage() {
           delivery: form.delivery || null,
           includes: form.includes || null,
           images,
-          // Credentials stored securely — only released when deal completes
+          // Asset specific
+          asset_subtype: form.asset_subtype || null,
+          github_url: form.github_url || null,
+          // multi-purchase: websites/apps/stores can be bought multiple times
+          allow_multiple_purchases: isMultiPurchaseAsset,
+          purchase_count: 0,
+          // Credentials: only for social/subscription/domain
           credentials: needCredentials ? {
             email: form.account_email || null,
             password: form.account_password || null,
@@ -311,21 +321,70 @@ export default function CreateListingPage() {
                   </div>
                 )}
 
-                {/* Asset: domain + tech */}
+                {/* Asset: subtype + fields */}
                 {category === 'asset' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                    <Field label="الدومين / الرابط">
-                      <input style={inputStyle} value={form.domain} onChange={e => f('domain', e.target.value)} placeholder="example.com" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* Subtype picker */}
+                    <Field label="نوع الأصل الرقمي" required>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+                        {[
+                          { id: 'website', icon: '🌐', label: 'موقع', hint: 'متعدد الشراء' },
+                          { id: 'app',     icon: '📱', label: 'تطبيق', hint: 'متعدد الشراء' },
+                          { id: 'store',   icon: '🛍️', label: 'متجر', hint: 'متعدد الشراء' },
+                          { id: 'domain',  icon: '🔗', label: 'دومين', hint: 'مرة واحدة' },
+                        ].map(sub => (
+                          <div key={sub.id} onClick={() => f('asset_subtype', sub.id)}
+                            style={{ padding: '14px 10px', borderRadius: 14, border: `2px solid ${form.asset_subtype === sub.id ? '#2563EB' : '#E2E8F0'}`, background: form.asset_subtype === sub.id ? 'rgba(37,99,235,0.06)' : 'white', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                            <div style={{ fontSize: 28, marginBottom: 6 }}>{sub.icon}</div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: form.asset_subtype === sub.id ? '#2563EB' : '#0F172A' }}>{sub.label}</div>
+                            <div style={{ fontSize: 10, color: form.asset_subtype === sub.id ? '#2563EB' : '#94A3B8', marginTop: 3 }}>{sub.hint}</div>
+                          </div>
+                        ))}
+                      </div>
                     </Field>
-                    <Field label="التقنية المستخدمة">
-                      <input style={inputStyle} value={form.tech_stack} onChange={e => f('tech_stack', e.target.value)} placeholder="WordPress, Shopify, Next.js..." />
-                    </Field>
-                    <Field label="الأرباح الشهرية ($)">
-                      <input style={inputStyle} type="number" value={form.monthly_revenue} onChange={e => f('monthly_revenue', e.target.value)} placeholder="0" />
-                    </Field>
-                    <Field label="الدولة">
-                      <input style={inputStyle} value={form.country} onChange={e => f('country', e.target.value)} placeholder="SA / AE / EG..." />
-                    </Field>
+
+                    {form.asset_subtype && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <Field label="الدومين / الرابط">
+                          <input style={inputStyle} value={form.domain} onChange={e => f('domain', e.target.value)} placeholder="example.com" />
+                        </Field>
+                        <Field label="التقنية المستخدمة">
+                          <input style={inputStyle} value={form.tech_stack} onChange={e => f('tech_stack', e.target.value)} placeholder="WordPress, Shopify, Next.js..." />
+                        </Field>
+                        <Field label="الأرباح الشهرية ($)">
+                          <input style={inputStyle} type="number" value={form.monthly_revenue} onChange={e => f('monthly_revenue', e.target.value)} placeholder="0" />
+                        </Field>
+                        <Field label="الدولة">
+                          <input style={inputStyle} value={form.country} onChange={e => f('country', e.target.value)} placeholder="SA / AE / EG..." />
+                        </Field>
+
+                        {/* GitHub link — only for website/app/store */}
+                        {isMultiPurchaseAsset && (
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <Field label="رابط GitHub (اختياري)" hint="المشتري سيحصل على هذا الرابط بعد الشراء لتحميل الكود">
+                              <div style={{ position: 'relative' }}>
+                                <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 18 }}>🐙</span>
+                                <input style={{ ...inputStyle, paddingRight: 40 }} value={form.github_url} onChange={e => f('github_url', e.target.value)}
+                                  placeholder="https://github.com/username/repo" />
+                              </div>
+                            </Field>
+                            <div style={{ marginTop: 10, padding: '12px 16px', borderRadius: 12, background: 'rgba(37,99,235,0.05)', border: '1px solid rgba(37,99,235,0.15)', fontSize: 12, color: '#1E40AF', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: 16 }}>ℹ️</span>
+                              <div>
+                                <strong>هذا النوع متعدد الشراء</strong> — يمكن لأكثر من مشترٍ شراء هذا الأصل وتحميل الكود.
+                                سيظهر عداد عدد المشترين على صفحة الإعلان.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {isDomain && (
+                          <div style={{ gridColumn: '1 / -1', padding: '12px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', fontSize: 12, color: '#DC2626' }}>
+                            🔴 <strong>الدومين يُباع مرة واحدة فقط</strong> — سيُحذف الإعلان بعد أول عملية شراء.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

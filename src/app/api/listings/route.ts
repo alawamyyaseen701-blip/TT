@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
       domain, followers, engagement, monthly_profit, monthly_revenue,
       age_months, monetized, plan, duration, tech_stack,
       delivery, includes, images, credentials,
+      asset_subtype, github_url, allow_multiple_purchases, purchase_count,
     } = body;
 
     if (!type || !title || !description || !price) {
@@ -106,6 +107,11 @@ export async function POST(req: NextRequest) {
       images: images || [],
       // Credentials stored encrypted — only released when deal completes
       credentials: credentials ? JSON.stringify(credentials) : null,
+      // Asset type logic
+      asset_subtype: asset_subtype || null,
+      github_url: github_url || null,
+      allow_multiple_purchases: allow_multiple_purchases || false,
+      purchase_count: purchase_count || 0,
       status: 'active',
       featured: false,
       views: 0,

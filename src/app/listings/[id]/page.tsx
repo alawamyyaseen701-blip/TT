@@ -187,6 +187,17 @@ export default function ListingDetailPage() {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                   {listing.platform && <span style={{ padding: '4px 12px', borderRadius: 100, background: 'rgba(139,92,246,0.1)', color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>📱 {listing.platform}</span>}
                   <span style={{ padding: '4px 12px', borderRadius: 100, background: 'rgba(37,99,235,0.1)', color: '#1D4ED8', fontSize: 12, fontWeight: 700 }}>{TYPE_ICONS[listing.type]} {TYPE_LABELS[listing.type]}</span>
+                  {listing.asset_subtype && <span style={{ padding: '4px 12px', borderRadius: 100, background: 'rgba(37,99,235,0.08)', color: '#1D4ED8', fontSize: 12, fontWeight: 700 }}>{{ website: '🌐 موقع', app: '📱 تطبيق', store: '🛍️ متجر', domain: '🔗 دومين' }[listing.asset_subtype as string] || listing.asset_subtype}</span>}
+                  {listing.allow_multiple_purchases && (
+                    <span style={{ padding: '4px 12px', borderRadius: 100, background: 'rgba(16,185,129,0.1)', color: '#059669', fontSize: 12, fontWeight: 700 }}>
+                      🔄 متعدد الشراء
+                    </span>
+                  )}
+                  {listing.allow_multiple_purchases && (listing.purchase_count || 0) > 0 && (
+                    <span style={{ padding: '4px 12px', borderRadius: 100, background: 'rgba(245,158,11,0.1)', color: '#D97706', fontSize: 12, fontWeight: 700 }}>
+                      🛒 {listing.purchase_count} مشتري
+                    </span>
+                  )}
                   {listing.monetized && <span style={{ padding: '4px 12px', borderRadius: 100, background: 'rgba(16,185,129,0.1)', color: '#059669', fontSize: 12, fontWeight: 700 }}>💰 مفعّلة الربح</span>}
                   {listing.featured && <span style={{ padding: '4px 12px', borderRadius: 100, background: 'rgba(245,158,11,0.1)', color: '#D97706', fontSize: 12, fontWeight: 700 }}>⭐ مميز</span>}
                   {listing.country && <span style={{ padding: '4px 12px', borderRadius: 100, background: '#F8FAFC', color: '#64748B', fontSize: 12, fontWeight: 600 }}>🌍 {listing.country}</span>}
@@ -209,8 +220,8 @@ export default function ListingDetailPage() {
                 <div style={{ whiteSpace: 'pre-wrap', fontSize: 15, color: '#374151', lineHeight: 1.9 }}>{listing.description}</div>
               </div>
 
-              {/* Extra fields */}
-              {(isReal(listing.plan) || isReal(listing.duration) || isReal(listing.domain) || isReal(listing.tech_stack) || isReal(listing.delivery) || isReal(listing.includes)) && (
+              {/* Extra fields + GitHub */}
+              {(isReal(listing.plan) || isReal(listing.duration) || isReal(listing.domain) || isReal(listing.tech_stack) || isReal(listing.delivery) || isReal(listing.includes) || isReal(listing.github_url)) && (
                 <div style={{ background: 'white', borderRadius: 24, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 24 }}>
                   <h2 style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', marginBottom: 16 }}>📋 تفاصيل العرض</h2>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -228,6 +239,27 @@ export default function ListingDetailPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* GitHub link card — visible publicly for multi-purchase assets */}
+                  {listing.allow_multiple_purchases && listing.github_url && (
+                    <div style={{ marginTop: 16, padding: '16px 20px', borderRadius: 16, background: 'linear-gradient(135deg, rgba(30,58,138,0.04), rgba(16,185,129,0.04))', border: '1.5px solid rgba(30,58,138,0.12)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>🐙 كود المشروع على GitHub</div>
+                        <div style={{ fontSize: 12, color: '#64748B' }}>بعد الشراء ستحصل على رابط التحميل المباشر</div>
+                      </div>
+                      <a href={listing.github_url} target="_blank" rel="noopener noreferrer"
+                        style={{ padding: '9px 20px', borderRadius: 10, background: '#0F172A', color: 'white', fontWeight: 700, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+                        <span>🐙</span> عرض Repository
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Domain — single purchase notice */}
+                  {listing.asset_subtype === 'domain' && (
+                    <div style={{ marginTop: 12, padding: '12px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', fontSize: 13, color: '#DC2626', fontWeight: 600 }}>
+                      🔴 الدومين يُباع مرة واحدة فقط — الإعلان سيُزال بعد أول عملية شراء
+                    </div>
+                  )}
                 </div>
               )}
 
