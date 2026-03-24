@@ -27,6 +27,9 @@ const STATUS_COLORS: Record<string, { bg: string; c: string; label: string }> = 
   resolved_buyer:  { bg: 'rgba(16,185,129,0.15)',  c: '#10B981', label: 'حُسم للمشتري' },
   resolved_seller: { bg: 'rgba(16,185,129,0.15)',  c: '#10B981', label: 'حُسم للبائع' },
   paid:            { bg: 'rgba(16,185,129,0.15)',  c: '#10B981', label: 'تم الدفع' },
+  pending_payment: { bg: 'rgba(100,116,139,0.15)', c: '#94A3B8', label: 'انتظار دفع' },
+  payment_sent:    { bg: 'rgba(245,158,11,0.2)',  c: '#FBBF24', label: 'دفعة أُرسلت ⏳' },
+  approved:        { bg: 'rgba(16,185,129,0.15)',  c: '#10B981', label: 'موافق عليه' },
   rejected:        { bg: 'rgba(239,68,68,0.15)',   c: '#EF4444', label: 'مرفوض' },
 };
 
@@ -57,7 +60,8 @@ export default function AdminDashboard() {
   const [listings, setListings] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
   const [disputes, setDisputes] = useState<any[]>([]);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawals,      setWithdrawals]      = useState<any[]>([]);
+  const [walletRequests,   setWalletRequests]   = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState('');
 
@@ -100,7 +104,12 @@ export default function AdminDashboard() {
       setDeals(dealList);
       setDisputes(dispList);
 
-      const pending_deals = dealList.filter((d:any) => d.status === 'in_escrow').length;
+      const walletRes = await fetch('/api/admin/wallet?status=pending', { headers });
+      const wd = await walletRes.json();
+      const wRequests = wd.success ? wd.data.requests || [] : [];
+      setWalletRequests(wRequests);
+
+      const pending_deals = dealList.filter((d:any) => ['pending_payment','payment_sent'].includes(d.status)).length;
       const revenue = dealList.filter((d:any) => d.status === 'completed').reduce((sum:number, d:any) => sum + (d.amount * 0.05), 0);
 
       setStats({
@@ -108,7 +117,7 @@ export default function AdminDashboard() {
         listings: listList.length,
         deals: dealList.length,
         disputes: dispList.filter((d:any) => d.status === 'open').length,
-        withdrawals: pending_deals,
+        withdrawals: pending_deals + wRequests.length,
         revenue: Math.round(revenue),
       });
     } catch (e) { console.error(e); }
@@ -348,13 +357,26 @@ export default function AdminDashboard() {
                         </thead>
                         <tbody>
                           {deals.map(d => (
-                            <tr key={d.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                             <tr key={d.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                               <td style={{ padding: '12px 16px', color: '#60A5FA', fontSize: 12, fontFamily: 'monospace' }}>{d.id.slice(0, 12)}</td>
                               <td style={{ padding: '12px 16px', color: 'white', fontSize: 13 }}>{d.listing_title || 'صفقة'}</td>
                               <td style={{ padding: '12px 16px', color: '#10B981', fontSize: 14, fontWeight: 800 }}>${(d.amount || 0).toLocaleString('en-US')}</td>
                               <td style={{ padding: '12px 16px' }}><Badge status={d.status} /></td>
                               <td style={{ padding: '12px 16px' }}>
-                                <div style={{ display: 'flex', gap: 6 }}>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                  {/* Admin confirms buyer's payment → in_escrow */}
+                                  {['pending_payment', 'payment_sent'].includes(d.status) && (
+                                    <button id={`admin-approve-pay-${d.id}`}
+                                      onClick={async () => {
+                                        const res = await apiFetch(`/api/deals/${d.id}`, { method: 'PATCH', body: JSON.stringify({ action: 'approve_payment' }) });
+                                        const data = await res.json();
+                                        if (data.success) { showToast('✅ تم تأكيد الدفع — الصفقة نشطة'); loadAll(localStorage.getItem('token') || ''); }
+                                        else showToast('❌ ' + (data.error || 'خطأ'));
+                                      }}
+                                      style={{ padding: '5px 12px', background: 'rgba(245,158,11,0.2)', border: '1px solid #F59E0B', borderRadius: 7, color: '#FBBF24', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                                      ✅ تأكيد الدفع
+                                    </button>
+                                  )}
                                   {d.status === 'in_escrow' && <>
                                     <button id={`admin-complete-${d.id}`} onClick={() => adminAction('/api/admin/deals', { dealId: d.id, action: 'complete' }, 'تم إتمام الصفقة')} style={{ padding: '5px 10px', background: 'rgba(16,185,129,0.15)', border: 'none', borderRadius: 7, color: '#10B981', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>إتمام</button>
                                     <button id={`admin-cancel-${d.id}`} onClick={() => adminAction('/api/admin/deals', { dealId: d.id, action: 'cancel' }, 'تم إلغاء الصفقة')} style={{ padding: '5px 10px', background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 7, color: '#EF4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>إلغاء</button>
@@ -403,14 +425,67 @@ export default function AdminDashboard() {
                 </>
               )}
 
-              {/* ── PAYMENTS ── */}
               {activeSection === 'payments' && (
                 <>
-                  <h1 style={{ color: 'white', fontSize: 26, fontWeight: 900, marginBottom: 24 }}>طلبات السحب</h1>
-                  <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.3)' }}>
-                    <div style={{ fontSize: 48, marginBottom: 12 }}>💳</div>
-                    <div>لا توجد طلبات سحب معلقة</div>
-                  </div>
+                  <h1 style={{ color: 'white', fontSize: 26, fontWeight: 900, marginBottom: 8 }}>💳 إدارة الدفعات والسحوبات</h1>
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, marginBottom: 24 }}>طلبات الإيداع والسحب من المستخدمين — تحقق من كل طلب قبل الموافقة</p>
+
+                  {walletRequests.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.3)' }}>
+                      <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                      <div>لا توجد طلبات معلقة</div>
+                    </div>
+                  ) : walletRequests.map((r: any) => {
+                    const isDeposit = r.type === 'deposit';
+                    return (
+                      <div key={r.id} style={{ background: '#1E293B', borderRadius: 16, border: `1px solid ${isDeposit ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, padding: '20px 24px', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                              <span style={{ fontSize: 20 }}>{isDeposit ? '⬇️' : '⬆️'}</span>
+                              <span style={{ color: 'white', fontWeight: 800, fontSize: 15 }}>
+                                {isDeposit ? 'طلب إيداع' : 'طلب سحب'} — {r.username}
+                              </span>
+                              <span style={{ fontSize: 22, fontWeight: 900, color: isDeposit ? '#10B981' : '#EF4444' }}>
+                                {isDeposit ? '+' : '-'}${r.amount}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                              <span>📡 {r.method?.replace('_', ' ')}</span>
+                              {r.tx_id    && <span>🔑 TxID: <code style={{ color: '#60A5FA' }}>{r.tx_id}</code></span>}
+                              {r.address  && <span>📬 العنوان: <code style={{ color: '#FBBF24', wordBreak: 'break-all' }}>{r.address}</code></span>}
+                              {r.notes    && <span>📝 {r.notes}</span>}
+                              <span>🕐 {new Date(r.created_at).toLocaleString('ar-EG')}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              id={`approve-wallet-${r.id}`}
+                              onClick={async () => {
+                                const res  = await apiFetch('/api/admin/wallet', { method: 'PATCH', body: JSON.stringify({ requestId: r.id, action: 'approve' }) });
+                                const data = await res.json();
+                                if (data.success) { showToast(isDeposit ? '✅ تم الإيداع وإضافة الرصيد' : '✅ تم قبول السحب وخصم الرصيد'); loadAll(localStorage.getItem('token') || ''); }
+                                else showToast('❌ ' + (data.error || 'خطأ'));
+                              }}
+                              style={{ padding: '9px 20px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 10, color: '#10B981', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                              ✅ {isDeposit ? 'تأكيد الإيداع' : 'تأكيد السحب'}
+                            </button>
+                            <button
+                              id={`reject-wallet-${r.id}`}
+                              onClick={async () => {
+                                const res  = await apiFetch('/api/admin/wallet', { method: 'PATCH', body: JSON.stringify({ requestId: r.id, action: 'reject', adminNote: 'تم الرفض' }) });
+                                const data = await res.json();
+                                if (data.success) { showToast('❌ تم رفض الطلب'); loadAll(localStorage.getItem('token') || ''); }
+                                else showToast('❌ ' + (data.error || 'خطأ'));
+                              }}
+                              style={{ padding: '9px 20px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, color: '#EF4444', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                              ❌ رفض
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </>
               )}
 
