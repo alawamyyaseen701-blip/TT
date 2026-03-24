@@ -1,93 +1,75 @@
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
 import { apiSuccess, apiError, calculateCommission } from '@/lib/auth';
+import { getDocs, updateDoc, createDoc, getDoc } from '@/lib/firebase';
 
-const CRON_SECRET = process.env.CRON_SECRET || 'trustdeal-cron-secret-2025';
-const AUTO_RELEASE_DAYS = 7; // 7 أيام من التسليم لو المشتري لم يرد
+const CRON_SECRET       = process.env.CRON_SECRET || 'trustdeal-cron-secret-2025';
+const AUTO_RELEASE_DAYS = 7;
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get('authorization')?.replace('Bearer ', '') ||
-    req.nextUrl.searchParams.get('secret');
+  const secret = req.headers.get('authorization')?.replace('Bearer ', '')
+    || req.nextUrl.searchParams.get('secret');
   if (secret !== CRON_SECRET) return apiError('Unauthorized', 401);
 
-  const db = getDb();
-  let autoReleased = 0;
-  let protectionReleased = 0;
-  let errors = 0;
+  let autoReleased = 0, protectionReleased = 0, errors = 0;
+  const now = new Date().toISOString();
 
   try {
-    // ─── 1) إطلاق أموال الصفقات المكتملة بعد انتهاء فترة الحماية ─────
-    const completedPendingPayout = db.prepare(`
-      SELECT * FROM deals
-      WHERE status = 'completed'
-        AND payout_released = 0
-        AND protection_expires_at IS NOT NULL
-        AND protection_expires_at <= datetime('now')
-    `).all() as any[];
+    // ─── 1) Release payout for completed deals whose protection period ended ──
+    const completedPending = await getDocs('deals', [
+      { field: 'status',           op: '==', value: 'completed' },
+      { field: 'payout_released',  op: '==', value: false },
+    ]);
 
-    const releasePayout = db.transaction((deals: any[]) => {
-      for (const deal of deals) {
-        try {
-          db.prepare(`UPDATE deals SET payout_released=1, updated_at=datetime('now') WHERE id=?`).run(deal.id);
-          // أضاف صافي البائع (95%) لمحفظته
-          db.prepare(`UPDATE users SET wallet_balance=wallet_balance+? WHERE id=?`).run(deal.seller_net, deal.seller_id);
-          // أضاف العمولة (5%) لرصيد المنصة (حساب الأدمن)
-          db.prepare(`UPDATE users SET platform_balance=platform_balance+? WHERE role='admin'`).run(deal.commission);
-          db.prepare(`INSERT INTO notifications (user_id,type,title,body,link) VALUES (?,'payment_released',?,?,?)`)
-            .run(deal.seller_id,
-              '💰 تم إطلاق أموالك!',
-              `تم تحويل $${deal.seller_net.toFixed(2)} لمحفظتك — انتهت فترة الضمان بأمان.`,
-              `/deals/${deal.id}`);
-          protectionReleased++;
-        } catch (e) { console.error(e); errors++; }
-      }
-    });
-    releasePayout(completedPendingPayout);
+    for (const deal of completedPending) {
+      if (!deal.protection_expires_at) continue;
+      if (new Date(deal.protection_expires_at) > new Date()) continue;
+      try {
+        await updateDoc('deals', deal.id, { payout_released: true });
+        const sellerDoc = await getDoc('users', deal.seller_id);
+        await updateDoc('users', deal.seller_id, {
+          wallet_balance: (sellerDoc?.wallet_balance || 0) + (deal.seller_net || deal.amount * 0.95),
+        });
+        await createDoc('notifications', {
+          user_id: deal.seller_id, type: 'payment_released',
+          title: '💰 تم إطلاق أموالك!',
+          body:  `تم تحويل $${(deal.seller_net || deal.amount * 0.95).toFixed(2)} لمحفظتك.`,
+          link:  `/deals/${deal.id}`, read_at: null,
+        });
+        protectionReleased++;
+      } catch (e) { console.error('[cron payout]', e); errors++; }
+    }
 
-    // ─── 2) إطلاق تلقائي لصفقات in_delivery لم يُؤكدها المشتري ─────
-    const overdueDeals = db.prepare(`
-      SELECT * FROM deals
-      WHERE status IN ('in_delivery', 'in_escrow')
-        AND auto_release_at IS NOT NULL
-        AND auto_release_at <= datetime('now')
-    `).all() as any[];
+    // ─── 2) Auto-release for overdue in_delivery / in_escrow deals ───────────
+    const overdueDeals = await getDocs('deals', [
+      { field: 'status', op: 'in', value: ['in_delivery', 'in_escrow'] },
+    ]);
 
-    const autoRelease = db.transaction((deals: any[]) => {
-      for (const deal of deals) {
-        try {
-          const { sellerNet } = calculateCommission(deal.amount);
-          const now = new Date().toISOString();
-          const protExpires = new Date(Date.now() + 72 * 3600000).toISOString();
-          db.prepare(`
-            UPDATE deals SET
-              status='completed',
-              buyer_confirmed_at=?,
-              protection_expires_at=?,
-              payout_released=0,
-              updated_at=?
-            WHERE id=?
-          `).run(now, protExpires, now, deal.id);
-          db.prepare('UPDATE users SET escrow_balance=MAX(0,escrow_balance-?), total_deals=total_deals+1 WHERE id=?')
-            .run(deal.amount, deal.buyer_id);
-          db.prepare('UPDATE users SET total_deals=total_deals+1 WHERE id=?').run(deal.seller_id);
-          if (deal.listing_id) db.prepare("UPDATE listings SET status='sold' WHERE id=?").run(deal.listing_id);
-          db.prepare(`INSERT INTO notifications (user_id,type,title,body,link) VALUES (?,'deal_update',?,?,?)`)
-            .run(deal.seller_id, '⏳ اكتملت الصفقة تلقائياً',
-              `تم إكمال الصفقة بعد ${AUTO_RELEASE_DAYS} أيام. أموالك $${sellerNet} ستُحوَّل بعد 72 ساعة.`,
-              `/deals/${deal.id}`);
-          autoReleased++;
-        } catch (e) { console.error(e); errors++; }
-      }
-    });
-    autoRelease(overdueDeals);
+    for (const deal of overdueDeals) {
+      if (!deal.auto_release_at) continue;
+      if (new Date(deal.auto_release_at) > new Date()) continue;
+      try {
+        const { sellerNet } = calculateCommission(deal.amount);
+        const protExpires   = new Date(Date.now() + 72 * 3_600_000).toISOString();
+        await updateDoc('deals', deal.id, {
+          status: 'completed', buyer_confirmed_at: now,
+          protection_expires_at: protExpires, payout_released: false,
+        });
+        const sellerDoc = await getDoc('users', deal.seller_id);
+        await updateDoc('users', deal.seller_id, {
+          total_deals: (sellerDoc?.total_deals || 0) + 1,
+        });
+        if (deal.listing_id) await updateDoc('listings', deal.listing_id, { status: 'sold' });
+        await createDoc('notifications', {
+          user_id: deal.seller_id, type: 'deal_update',
+          title: '⏳ اكتملت الصفقة تلقائياً',
+          body:  `تم إكمال الصفقة بعد ${AUTO_RELEASE_DAYS} أيام. أموالك $${sellerNet} ستُحوَّل بعد 72 ساعة.`,
+          link:  `/deals/${deal.id}`, read_at: null,
+        });
+        autoReleased++;
+      } catch (e) { console.error('[cron auto-release]', e); errors++; }
+    }
 
-    return apiSuccess({
-      message: 'Cron complete',
-      protectionReleased,
-      autoReleased,
-      errors,
-      processedAt: new Date().toISOString(),
-    });
+    return apiSuccess({ message: 'Cron complete', protectionReleased, autoReleased, errors, processedAt: now });
   } catch (e) {
     console.error('[Cron]', e);
     return apiError('Cron job failed', 500);

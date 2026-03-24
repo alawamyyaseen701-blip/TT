@@ -1,31 +1,30 @@
 import { NextRequest } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { getDb } from '@/lib/db';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
+import { getDoc, updateDoc } from '@/lib/firebase';
+import bcrypt from 'bcryptjs';
 
-// PATCH /api/users/me/password
 export async function PATCH(req: NextRequest) {
   try {
-    const user = getTokenFromRequest(req);
-    if (!user) return apiError('يجب تسجيل الدخول', 401);
+    const auth = getTokenFromRequest(req);
+    if (!auth) return apiError('يجب تسجيل الدخول', 401);
 
     const { currentPassword, newPassword } = await req.json();
     if (!currentPassword || !newPassword) return apiError('كلمة المرور الحالية والجديدة مطلوبتان');
     if (newPassword.length < 8) return apiError('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل');
 
-    const db = getDb();
-    const dbUser = db.prepare('SELECT password FROM users WHERE id = ?').get(user.userId) as any;
-    if (!dbUser) return apiError('المستخدم غير موجود', 404);
+    const user = await getDoc('users', auth.userId);
+    if (!user) return apiError('المستخدم غير موجود', 404);
+    if (!user.password_hash) return apiError('هذا الحساب مرتبط بـ Google — لا يمكن تغيير الباسورد');
 
-    const isValid = await bcrypt.compare(currentPassword, dbUser.password);
-    if (!isValid) return apiError('كلمة المرور الحالية غير صحيحة');
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) return apiError('كلمة المرور الحالية غير صحيحة');
 
-    const hashed = await bcrypt.hash(newPassword, 12);
-    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashed, user.userId);
+    const newHash = await bcrypt.hash(newPassword, 12);
+    await updateDoc('users', auth.userId, { password_hash: newHash });
 
     return apiSuccess({ message: 'تم تغيير كلمة المرور بنجاح' });
-  } catch (e) {
-    console.error(e);
+  } catch (e: any) {
+    console.error('[users/me/password]', e);
     return apiError('خطأ في الخادم', 500);
   }
 }

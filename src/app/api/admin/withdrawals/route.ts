@@ -1,37 +1,16 @@
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
+import { getDocs, updateDoc, createDoc, getDoc } from '@/lib/firebase';
 
-function requireAdmin(req: NextRequest) {
-  const user = getTokenFromRequest(req);
-  return user?.role === 'admin' ? user : null;
-}
-
-// GET /api/admin/withdrawals?status=pending
+// GET /api/admin/withdrawals
 export async function GET(req: NextRequest) {
   try {
-    const admin = requireAdmin(req);
-    if (!admin) return apiError('غير مصرح', 403);
-
-    const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') || 'pending';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = (page - 1) * limit;
-
-    const db = getDb();
-    const total = db.prepare(`SELECT COUNT(*) as count FROM withdrawals WHERE status = ?`).get(status) as { count: number };
-
-    const withdrawals = db.prepare(`
-      SELECT w.*, u.username, u.display_name, u.email, u.wallet_balance
-      FROM withdrawals w JOIN users u ON u.id = w.user_id
-      WHERE w.status = ?
-      ORDER BY w.created_at DESC LIMIT ? OFFSET ?
-    `).all(status, limit, offset);
-
-    return apiSuccess({ withdrawals, pagination: { total: total.count, page, limit, totalPages: Math.ceil(total.count / limit) } });
-  } catch (e) {
-    console.error(e);
+    const user = getTokenFromRequest(req);
+    if (!user || user.role !== 'admin') return apiError('Admin only', 403);
+    const requests = await getDocs('wallet_requests', [{ field: 'type', op: '==', value: 'withdraw' }], { orderBy: 'created_at', direction: 'desc', limit: 100 });
+    return apiSuccess({ withdrawals: requests });
+  } catch (e: any) {
+    console.error('[admin/withdrawals GET]', e);
     return apiError('خطأ في الخادم', 500);
   }
 }
@@ -39,34 +18,47 @@ export async function GET(req: NextRequest) {
 // PATCH /api/admin/withdrawals — approve or reject
 export async function PATCH(req: NextRequest) {
   try {
-    const admin = requireAdmin(req);
-    if (!admin) return apiError('غير مصرح', 403);
+    const user = getTokenFromRequest(req);
+    if (!user || user.role !== 'admin') return apiError('Admin only', 403);
 
-    const { withdrawalId, action, note } = await req.json();
-    if (!withdrawalId || !action) return apiError('withdrawalId و action مطلوبان');
-    if (!['approve', 'reject'].includes(action)) return apiError('إجراء غير صحيح');
+    const { requestId, action, note } = await req.json();
+    if (!requestId || !action) return apiError('معرف الطلب والإجراء مطلوبان');
+    if (!['approve', 'reject'].includes(action)) return apiError('إجراء غير صالح');
 
-    const db = getDb();
-    const wd = db.prepare("SELECT * FROM withdrawals WHERE id = ? AND status = 'pending'").get(withdrawalId) as any;
-    if (!wd) return apiError('طلب السحب غير موجود أو تمت معالجته', 404);
+    const request = await getDoc('wallet_requests', requestId);
+    if (!request) return apiError('الطلب غير موجود', 404);
+    if (request.status !== 'pending') return apiError('الطلب تمت معالجته بالفعل');
 
-    db.transaction(() => {
-      if (action === 'approve') {
-        db.prepare("UPDATE withdrawals SET status = 'paid', admin_note = ?, processed_at = datetime('now') WHERE id = ?").run(note || null, withdrawalId);
-        db.prepare("INSERT INTO notifications (user_id, type, title, body) VALUES (?, 'withdrawal_approved', 'تم قبول طلب السحب', 'تم تحويل المبلغ إلى حسابك')")
-          .run(wd.user_id);
-      } else {
-        // Refund amount to wallet
-        db.prepare('UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?').run(wd.amount, wd.user_id);
-        db.prepare("UPDATE withdrawals SET status = 'rejected', admin_note = ?, processed_at = datetime('now') WHERE id = ?").run(note || null, withdrawalId);
-        db.prepare("INSERT INTO notifications (user_id, type, title, body) VALUES (?, 'withdrawal_rejected', 'تم رفض طلب السحب', ?)")
-          .run(wd.user_id, note || 'تم رفض طلب السحب وإعادة المبلغ لرصيدك');
-      }
-    })();
+    const now = new Date().toISOString();
 
-    return apiSuccess({ message: action === 'approve' ? 'تم قبول طلب السحب' : 'تم رفض طلب السحب وإعادة المبلغ' });
-  } catch (e) {
-    console.error(e);
+    if (action === 'approve') {
+      await updateDoc('wallet_requests', requestId, { status: 'approved', admin_note: note || null, processed_at: now });
+      // Deduct from user wallet
+      const userDoc = await getDoc('users', request.user_id);
+      const newBal  = Math.max(0, (userDoc?.wallet_balance || 0) - request.amount);
+      await updateDoc('users', request.user_id, { wallet_balance: newBal });
+      await createDoc('notifications', {
+        user_id: request.user_id, type: 'withdrawal_approved',
+        title: '✅ تمت الموافقة على طلب السحب',
+        body:  `تمت الموافقة على سحب $${request.amount} — سيصلك خلال 24 ساعة.`,
+        link: '/dashboard', read_at: null,
+      });
+    } else {
+      await updateDoc('wallet_requests', requestId, { status: 'rejected', admin_note: note || null, processed_at: now });
+      // Unfreeze balance
+      const userDoc = await getDoc('users', request.user_id);
+      await updateDoc('users', request.user_id, { wallet_balance: (userDoc?.wallet_balance || 0) + request.amount });
+      await createDoc('notifications', {
+        user_id: request.user_id, type: 'withdrawal_rejected',
+        title: '❌ تم رفض طلب السحب',
+        body:  `تم رفض طلب سحب $${request.amount}. السبب: ${note || 'غير محدد'}. تم إعادة المبلغ لمحفظتك.`,
+        link: '/dashboard', read_at: null,
+      });
+    }
+
+    return apiSuccess({ status: action === 'approve' ? 'approved' : 'rejected' });
+  } catch (e: any) {
+    console.error('[admin/withdrawals PATCH]', e);
     return apiError('خطأ في الخادم', 500);
   }
 }
