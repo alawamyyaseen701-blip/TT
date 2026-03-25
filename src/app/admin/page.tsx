@@ -386,7 +386,7 @@ export default function AdminDashboard() {
                                       ✅ تأكيد الدفع
                                     </button>
                                   )}
-                                  {d.status === 'in_escrow' && <>
+                                  {['in_escrow','in_delivery'].includes(d.status) && <>
                                     <button id={`admin-complete-${d.id}`} onClick={() => adminAction('/api/admin/deals', { dealId: d.id, action: 'complete' }, 'تم إتمام الصفقة')} style={{ padding: '5px 10px', background: 'rgba(16,185,129,0.15)', border: 'none', borderRadius: 7, color: '#10B981', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>إتمام</button>
                                     <button id={`admin-cancel-${d.id}`} onClick={() => adminAction('/api/admin/deals', { dealId: d.id, action: 'cancel' }, 'تم إلغاء الصفقة')} style={{ padding: '5px 10px', background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 7, color: '#EF4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>إلغاء</button>
                                   </>}

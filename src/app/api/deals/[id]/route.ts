@@ -215,7 +215,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // ── إلغاء الصفقة ─────────────────────────────────────────────
     if (action === 'cancel' && (isBuyer || isAdmin)) {
-      if (!['pending_payment', 'payment_sent', 'in_escrow'].includes(deal.status)) return apiError('لا يمكن إلغاء الصفقة الآن');
+      if (!['pending_payment', 'payment_sent', 'in_escrow', 'in_delivery'].includes(deal.status)) return apiError('لا يمكن إلغاء الصفقة الآن');
       await updateDoc('deals', id, { status: 'cancelled' });
       if (deal.listing_id) await updateDoc('listings', deal.listing_id, { status: 'active' });
       return apiSuccess({ status: 'cancelled' });
