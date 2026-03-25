@@ -3,48 +3,51 @@
  * ─────────────────────────────────
  * Setup:
  * 1. افتح @BotFather على Telegram → /newbot
- * 2. اتبع التعليمات واحفظ TOKEN
+ * 2. احفظ الـ TOKEN
  * 3. ابعت رسالة للبوت ثم افتح:
  *    https://api.telegram.org/bot{TOKEN}/getUpdates
- * 4. انسخ chat_id من الاستجابة وضعه في TELEGRAM_ADMIN_CHAT_ID
+ * 4. انسخ chat_id وضعه في TELEGRAM_ADMIN_CHAT_ID
  */
 
-const BOT_TOKEN    = process.env.TELEGRAM_BOT_TOKEN    || '';
-const ADMIN_CHAT   = process.env.TELEGRAM_ADMIN_CHAT_ID || '';
-const APP_URL      = process.env.NEXT_PUBLIC_APP_URL   || 'https://trustdeal.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://trustdeal.vercel.app';
 
-// ── Core sender ────────────────────────────────────────────────────────────
+type TgButton = { text: string; url?: string; callback_data?: string };
+
+// ── Core sender — reads env vars at RUNTIME each call ─────────────────────
 
 export async function sendTelegram(chatId: string, text: string, replyMarkup?: object): Promise<boolean> {
-  if (!BOT_TOKEN || !chatId) {
-    console.warn('[Telegram] BOT_TOKEN or chatId not configured — skipping notification');
+  const token = process.env.TELEGRAM_BOT_TOKEN || '';
+  const isLocalhost = (process.env.NEXT_PUBLIC_APP_URL || '').includes('localhost');
+
+  if (!token || !chatId) {
+    console.warn('[Telegram] BOT_TOKEN or chatId not configured — skipping. token=', token ? '✅' : '❌', 'chatId=', chatId || '❌');
     return false;
   }
   try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    console.log('[Telegram] Sending to', chatId, '→', text.slice(0, 80));
+    const payload: any = { chat_id: chatId, text, parse_mode: 'HTML' };
+    // Telegram rejects localhost URLs in inline keyboards
+    if (replyMarkup && !isLocalhost) payload.reply_markup = replyMarkup;
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id:    chatId,
-        text,
-        parse_mode: 'HTML',
-        reply_markup: replyMarkup,
-      }),
+      body:    JSON.stringify(payload),
     });
     const data = await res.json();
     if (!data.ok) console.error('[Telegram] Send failed:', data.description);
-    return data.ok;
+    else console.log('[Telegram] ✅ Sent, message_id:', data.result?.message_id);
+    return !!data.ok;
   } catch (e) {
     console.error('[Telegram] Error:', e);
     return false;
   }
 }
 
-/** Send to admin chat (shortcut) */
-const tg = (text: string, buttons?: TgButton[][]) =>
-  sendTelegram(ADMIN_CHAT, text, buttons ? { inline_keyboard: buttons } : undefined);
 
-type TgButton = { text: string; url?: string; callback_data?: string };
+/** Send to admin chat */
+const tg = (text: string, buttons?: TgButton[][]) =>
+  sendTelegram(process.env.TELEGRAM_ADMIN_CHAT_ID || '', text, buttons ? { inline_keyboard: buttons } : undefined);
 
 // ── Notification templates ─────────────────────────────────────────────────
 
@@ -68,9 +71,9 @@ ${methodLabel}
 `.trim();
 
   await tg(text, [[
-    { text: '✅ تأكيد الدفع',   url: `${APP_URL}/admin?deal=${deal.id}&action=approve` },
-    { text: '🔍 فتح الصفقة',    url: `${APP_URL}/deals/${deal.id}` },
-    { text: '⚙️ لوحة التحكم',   url: `${APP_URL}/admin` },
+    { text: '✅ تأكيد الدفع',  url: `${APP_URL}/admin?deal=${deal.id}&action=approve` },
+    { text: '🔍 فتح الصفقة',   url: `${APP_URL}/deals/${deal.id}` },
+    { text: '⚙️ لوحة التحكم', url: `${APP_URL}/admin` },
   ]]);
 }
 
@@ -94,7 +97,7 @@ export async function notifyWithdrawal(req: {
 
   await tg(text, [[
     { text: '✅ موافقة',        url: `${APP_URL}/admin?section=payments&req=${req.id}` },
-    { text: '⚙️ لوحة التحكم',  url: `${APP_URL}/admin` },
+    { text: '⚙️ لوحة التحكم', url: `${APP_URL}/admin` },
   ]]);
 }
 
@@ -117,8 +120,8 @@ export async function notifyDispute(dispute: {
 `.trim();
 
   await tg(text, [[
-    { text: '⚖️ فتح النزاع',    url: `${APP_URL}/admin?section=disputes` },
-    { text: '📦 عرض الصفقة',   url: `${APP_URL}/deals/${dispute.dealId}` },
+    { text: '⚖️ فتح النزاع',   url: `${APP_URL}/admin?section=disputes` },
+    { text: '📦 عرض الصفقة',  url: `${APP_URL}/deals/${dispute.dealId}` },
   ]]);
 }
 

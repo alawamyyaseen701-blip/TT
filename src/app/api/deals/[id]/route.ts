@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
 import { getDoc, updateDoc, createDoc } from '@/lib/firebase';
-import { notifyPaymentPending, notifyNewDeal, notifyClawback, notifyAdmin } from '@/lib/telegram';
+import { notifyPaymentPending, notifyNewDeal, notifyClawback } from '@/lib/telegram';
 
 const PROTECTION_HOURS = 72;
 const COMMISSION       = parseFloat(process.env.COMMISSION_RATE || '0.05');
