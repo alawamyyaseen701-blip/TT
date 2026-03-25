@@ -12,7 +12,7 @@ const CRYPTO_METHODS = [
   { id: 'wise',        icon: '🌍', name: 'Wise Transfer', net: 'تحويل بنكي دولي',     note: 'رسوم منخفضة', color: '#0D9488', bg: '#F0FDFA' },
 ];
 
-type PayStep = 'choose' | 'paymob_iframe' | 'crypto_form' | 'done';
+type PayStep = 'choose' | 'paymob_iframe' | 'crypto_form' | 'instapay_form' | 'done';
 
 function PaymentContent() {
   const params        = useParams();
@@ -28,6 +28,7 @@ function PaymentContent() {
   const [cryptoAddr,   setCryptoAddr]  = useState('');
   const [copied,       setCopied]      = useState(false);
   const [txId,         setTxId]        = useState('');
+  const [instapayId,   setInstapayId]  = useState('');
   const [submitting,   setSubmitting]  = useState(false);
   const [redirecting,  setRedirecting] = useState('');
   const [msg,          setMsg]         = useState('');
@@ -87,8 +88,34 @@ function PaymentContent() {
     setCryptoId(methodId); setCryptoAddr('');
     const res  = await fetch(`/api/checkout/address?method=${methodId}`);
     const data = await res.json();
-    setCryptoAddr(data.address || '');
+    setCryptoAddr(data.data?.address || data.address || '');
     setStep('crypto_form');
+  };
+
+  // ── Select Instapay → fetch admin ID ─────────────────────────
+  const selectInstapay = async () => {
+    setInstapayId(''); setMsg('');
+    const res  = await fetch('/api/checkout/address?method=instapay');
+    const data = await res.json();
+    setInstapayId(data.data?.address || data.address || '');
+    setStep('instapay_form');
+  };
+
+  // ── Submit Instapay reference ─────────────────────────────────
+  const submitInstapay = async () => {
+    if (!txId.trim()) { setMsg('❌ أدخل رقم العملية من Instapay'); return; }
+    setSubmitting(true); setMsg('');
+    try {
+      const res  = await fetch(`/api/deals/${dealId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'confirm_payment', method: 'instapay', txId }),
+      });
+      const data = await res.json();
+      if (data.success) setStep('done');
+      else setMsg('❌ ' + (data.error || 'حدث خطأ'));
+    } catch { setMsg('❌ خطأ في الاتصال'); }
+    finally { setSubmitting(false); }
   };
 
   // ── Submit crypto TxID ────────────────────────────────────────
@@ -192,6 +219,19 @@ function PaymentContent() {
                   </div>
                 </button>
               </div>
+            </div>
+
+            {/* ── Instapay (مصر) ── */}
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#94A3B8', marginBottom: 10, letterSpacing: 1 }}>🏦 انستاباي — تحويل فوري داخل مصر</div>
+              <button id="pay-instapay" onClick={selectInstapay} disabled={!!redirecting}
+                style={{ width: '100%', padding: '16px 14px', borderRadius: 16, border: '2px solid #0EA5E9', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, transition: 'all 0.2s' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#0EA5E9,#0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>⚡</div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: 14 }}>Instapay</div>
+                  <div style={{ fontSize: 11, color: '#0EA5E9', fontWeight: 600 }}>تحويل بنكي فوري — بنوك مصر + Vodafone Cash</div>
+                </div>
+              </button>
             </div>
 
             {/* ── PayPal (دولي) ── */}
@@ -300,7 +340,62 @@ function PaymentContent() {
           </div>
         )}
 
-        {/* ── STEP 3: Done (crypto pending) ───────────────────────── */}
+        {/* ── STEP 2c: Instapay form ────────────────────────────────── */}
+        {step === 'instapay_form' && (
+          <div style={{ background: 'white', borderRadius: 20, border: '1.5px solid #0EA5E9', padding: '28px', boxShadow: '0 4px 20px rgba(14,165,233,0.1)' }}>
+            <button onClick={() => setStep('choose')} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: 13, fontWeight: 600, marginBottom: 20, padding: 0 }}>← رجوع</button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <span style={{ fontSize: 36 }}>⚡</span>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: '#0F172A' }}>Instapay</div>
+                <div style={{ fontSize: 12, color: '#0EA5E9', fontWeight: 600 }}>تحويل بنكي فوري داخل مصر</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20, padding: 16, borderRadius: 14, background: '#F0F9FF', border: '1.5px solid #BAE6FD' }}>
+              <div style={{ fontSize: 12, color: '#0369A1', marginBottom: 4 }}>المبلغ المطلوب تحويله:</div>
+              <div style={{ fontSize: 30, fontWeight: 900, color: '#0EA5E9' }}>${deal.amount} <span style={{ fontSize: 14, color: '#0369A1' }}>≈ {(deal.amount * 50).toFixed(0)} جنيه مصري</span></div>
+              <div style={{ fontSize: 11, color: '#0369A1', marginTop: 6 }}>⚠️ حوّل المبلغ بالضبط — أي فرق يؤخّر التأكيد</div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 }}>📱 ID Instapay الخاص بالمنصة</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <code style={{ flex: 1, background: '#F0F9FF', border: '1.5px solid #BAE6FD', padding: '12px 14px', borderRadius: 12, fontSize: 16, fontWeight: 900, color: '#0C4A6E', textAlign: 'center' as const }}>
+                  {instapayId || '⏳ جاري التحميل...'}
+                </code>
+                <button onClick={() => copy(instapayId)} style={{ padding: '12px 18px', background: copied ? '#10B981' : '#0EA5E9', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                  {copied ? '✓' : 'نسخ'}
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: '#64748B', marginTop: 8, lineHeight: 1.6 }}>
+                1️⃣ افتح تطبيق البنك أو Vodafone Cash أو أي محفظة تدعم Instapay<br />
+                2️⃣ اختر "تحويل" ثم ابحث عن ID أو أدخله يدوياً<br />
+                3️⃣ حوّل المبلغ بالضبط ثم انسخ رقم العملية من الإيصال
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 8 }}>
+                🔑 رقم العملية (Reference Number) من إيصال Instapay
+              </label>
+              <input id="instapay-ref" value={txId} onChange={e => setTxId(e.target.value)}
+                placeholder="مثال: 2025032500001234"
+                style={{ width: '100%', padding: '13px 16px', border: '2px solid #BAE6FD', borderRadius: 14, fontFamily: 'Tajawal, sans-serif', fontSize: 14, outline: 'none', background: '#F0F9FF', boxSizing: 'border-box' as const }} />
+              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 6 }}>✅ سيتم التحقق خلال 30 دقيقة وتفعيل الصفقة</div>
+            </div>
+
+            {msg && <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 12, background: msg.startsWith('❌') ? 'rgba(239,68,68,0.07)' : 'rgba(16,185,129,0.07)', color: msg.startsWith('❌') ? '#DC2626' : '#059669', fontSize: 13, fontWeight: 600 }}>{msg}</div>}
+
+            <button id="submit-instapay-btn" onClick={submitInstapay} disabled={submitting}
+              style={{ width: '100%', padding: 16, border: 'none', borderRadius: 14, background: submitting ? '#CBD5E1' : 'linear-gradient(135deg,#0EA5E9,#0284C7)', color: 'white', fontWeight: 900, fontSize: 15, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 6px 20px rgba(14,165,233,0.4)' }}>
+              {submitting ? '⏳ جاري الإرسال...' : '📤 حوّلت المبلغ — تأكيد الآن'}
+            </button>
+          </div>
+        )}
+
+        {/* ── STEP 3: Done (pending) ───────────────────────── */}
         {step === 'done' && (
           <div style={{ background: 'white', borderRadius: 20, border: '1.5px solid #E2E8F0', padding: '48px 28px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>⏳</div>
