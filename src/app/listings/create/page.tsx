@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import AccountVerifier from '@/components/AccountVerifier';
 
 /* ── Constants ── */
 const STEPS = [
@@ -113,6 +114,7 @@ export default function CreateListingPage() {
   const [error, setError] = useState('');
   const [publishedId, setPublishedId] = useState('');
   const [success, setSuccess] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<any>(null); // account verification data
 
   const f = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
   const selectedCat = CATEGORIES.find(c => c.id === category);
@@ -224,6 +226,14 @@ export default function CreateListingPage() {
             phone: form.account_phone || null,
             extra: form.extra_info || null,
           } : null,
+          // Account verification data (from AccountVerifier bot)
+          account_verified:  verifyResult?.verified || false,
+          verify_badge:      verifyResult?.badge || null,
+          verify_score:      verifyResult?.riskScore || null,
+          verify_followers:  verifyResult?.followers || null,
+          verify_name:       verifyResult?.name || null,
+          verify_avatar:     verifyResult?.avatar || null,
+          verify_checked_at: verifyResult?.checkedAt || null,
         }),
       });
       const data = await res.json();
@@ -324,18 +334,38 @@ export default function CreateListingPage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-                {/* Social: platform picker */}
+                {/* Social: platform picker + account verifier */}
                 {category === 'social' && (
-                  <Field label="المنصة" required>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                      {SOCIAL_PLATFORMS.map(p => (
-                        <button key={p} onClick={() => setPlatform(p)}
-                          style={{ padding: '8px 16px', borderRadius: 100, border: '1.5px solid', fontFamily: 'Tajawal, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', borderColor: platform === p ? '#1E3A8A' : '#E2E8F0', background: platform === p ? '#1E3A8A' : 'white', color: platform === p ? 'white' : '#64748B' }}>
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
+                  <>
+                    <Field label="المنصة" required>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                        {SOCIAL_PLATFORMS.map(p => (
+                          <button key={p} onClick={() => { setPlatform(p); setVerifyResult(null); }}
+                            style={{ padding: '8px 16px', borderRadius: 100, border: '1.5px solid', fontFamily: 'Tajawal, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', borderColor: platform === p ? '#1E3A8A' : '#E2E8F0', background: platform === p ? '#1E3A8A' : 'white', color: platform === p ? 'white' : '#64748B' }}>
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+
+                    {/* Account Verifier — appears after platform is chosen */}
+                    {platform && (['YouTube','Instagram','TikTok','Twitter / X','GitHub'].includes(platform)) && (
+                      <div>
+                        <AccountVerifier
+                          platform={platform.toLowerCase().replace(' / x', '').replace('twitter', 'twitter').replace('youtube','youtube')}
+                          claimedFollowers={parseInt(form.followers || '0')}
+                          onVerified={(r) => setVerifyResult(r)}
+                        />
+                        {verifyResult?.verified && (
+                          <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 10, background: verifyResult.badge === 'verified' ? '#F0FDF4' : verifyResult.badge === 'suspicious' ? '#FFFBEB' : '#FEF2F2', border: `1.5px solid ${verifyResult.badge === 'verified' ? '#A7F3D0' : verifyResult.badge === 'suspicious' ? '#FDE68A' : '#FECACA'}`, fontSize: 12, color: '#374151', fontWeight: 600 }}>
+                            {verifyResult.badge === 'verified'   && '✅ الحساب موثّق — سيظهر شارة "موثّق" على الإعلان'}
+                            {verifyResult.badge === 'suspicious' && '⚠️ بيانات مشبوهة — ننصح بمراجعة البيانات قبل النشر'}
+                            {verifyResult.badge === 'unverified' && '❌ لم يتم التحقق — يمكنك النشر لكن بدون شارة توثيق'}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Subscription: platform + plan */}

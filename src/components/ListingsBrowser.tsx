@@ -21,6 +21,11 @@ interface Listing {
   age_months?: number;
   monetized?: boolean;
   created_at?: string;
+  // Verification
+  account_verified?: boolean;
+  verify_badge?: 'verified' | 'suspicious' | 'unverified' | null;
+  verify_score?: number | null;
+  verify_followers?: number | null;
 }
 
 interface ListingsBrowserProps {
@@ -184,6 +189,16 @@ export default function ListingsBrowser({
                 <div key={listing.id} className="card" style={{ position: 'relative' }}>
                   {listing.featured && (
                     <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, background: 'linear-gradient(135deg, #F59E0B, #FBBF24)', color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 100 }}>⭐ مميز</div>
+                  )}
+                  {listing.account_verified && listing.verify_badge === 'verified' && (
+                    <div style={{ position: 'absolute', top: listing.featured ? 42 : 12, right: 12, zIndex: 2, background: 'linear-gradient(135deg,#10B981,#059669)', color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 100, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      ✅ موثّق {listing.verify_score ? `· ${listing.verify_score}%` : ''}
+                    </div>
+                  )}
+                  {listing.account_verified && listing.verify_badge === 'suspicious' && (
+                    <div style={{ position: 'absolute', top: listing.featured ? 42 : 12, right: 12, zIndex: 2, background: 'rgba(245,158,11,0.9)', color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 100 }}>
+                      ⚠️ بيانات مشبوهة
+                    </div>
                   )}
 
                   {/* Card Header */}
