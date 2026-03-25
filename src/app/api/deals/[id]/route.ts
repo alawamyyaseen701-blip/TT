@@ -27,11 +27,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ]);
 
     let deliveryCredentials = null;
+
+    // Primary source: deal.delivery_data
     if (deal.delivery_data) {
       const canSee = isSeller || isAdmin ||
         (isBuyer && ['in_delivery', 'delivered', 'confirmed', 'completed'].includes(deal.status));
       try { deliveryCredentials = canSee ? JSON.parse(deal.delivery_data) : { locked: true }; }
       catch { deliveryCredentials = null; }
+    }
+
+    // Fallback: pull from listing.credentials for completed/in_delivery deals
+    // (covers old deals created before auto-copy was implemented)
+    if (!deliveryCredentials && listing?.credentials && (isBuyer || isSeller || isAdmin)) {
+      const canSee = isSeller || isAdmin ||
+        (isBuyer && ['in_delivery', 'delivered', 'confirmed', 'completed'].includes(deal.status));
+      if (canSee) {
+        try {
+          const raw = typeof listing.credentials === 'string'
+            ? JSON.parse(listing.credentials)
+            : listing.credentials;
+          deliveryCredentials = {
+            email:          raw.email    || raw.account_email    || null,
+            password:       raw.password || raw.account_password || null,
+            phone:          raw.phone    || raw.account_phone    || null,
+            username:       raw.username || null,
+            recovery_email: raw.recovery_email || null,
+            notes:          raw.extra    || raw.extra_info       || raw.notes || null,
+          };
+          // Auto-persist to deal so future GETs use deal.delivery_data
+          if (isBuyer && ['in_delivery', 'delivered', 'confirmed', 'completed'].includes(deal.status)) {
+            updateDoc('deals', deal.id, { delivery_data: JSON.stringify(deliveryCredentials) }).catch(() => {});
+          }
+        } catch { /* ignore */ }
+      } else {
+        deliveryCredentials = { locked: true };
+      }
     }
 
     let protectionInfo = null;
@@ -91,16 +121,54 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (!['pending_payment', 'payment_sent'].includes(deal.status)) return apiError('الصفقة ليست بانتظار تأكيد');
       const sellerNet   = deal.amount * (1 - COMMISSION);
       const autoRelease = new Date(Date.now() + 7 * 86_400_000).toISOString();
-      await updateDoc('deals', id, { status: 'in_escrow', seller_net: sellerNet, auto_release_at: autoRelease, payment_approved_at: now });
-      if (deal.listing_id) { const l = await getDoc('listings', deal.listing_id); if (l && !l.allow_multiple_purchases) await updateDoc('listings', deal.listing_id, { status: 'sold' }); }
+
+      // ── Auto-copy listing credentials → deal delivery_data ──
+      // The seller already entered credentials during listing creation.
+      // We copy them now so the buyer can see them immediately.
+      let autoDeliveryData: string | null = null;
+      let autoStatus = 'in_escrow';
+      if (deal.listing_id) {
+        const listing = await getDoc('listings', deal.listing_id);
+        if (listing?.credentials) {
+          try {
+            const creds = typeof listing.credentials === 'string'
+              ? JSON.parse(listing.credentials)
+              : listing.credentials;
+            // Map listing credential fields to deal delivery_data fields
+            autoDeliveryData = JSON.stringify({
+              email:          creds.email    || creds.account_email    || null,
+              password:       creds.password || creds.account_password || null,
+              phone:          creds.phone    || creds.account_phone    || null,
+              username:       creds.username || null,
+              recovery_email: creds.recovery_email || null,
+              notes:          creds.extra    || creds.extra_info       || creds.notes || null,
+            });
+            autoStatus = 'in_delivery'; // skip in_escrow — go straight to in_delivery
+          } catch { /* keep in_escrow if parse fails */ }
+        }
+        // Mark listing as sold if not multi-purchase
+        if (listing && !listing.allow_multiple_purchases) {
+          await updateDoc('listings', deal.listing_id, { status: 'sold' });
+        }
+      }
+
+      await updateDoc('deals', id, {
+        status: autoStatus,
+        seller_net: sellerNet,
+        auto_release_at: autoRelease,
+        payment_approved_at: now,
+        ...(autoDeliveryData ? { delivery_data: autoDeliveryData } : {}),
+      });
+
       const [buyerDoc2, sellerDoc2] = await Promise.all([getDoc('users', deal.buyer_id), getDoc('users', deal.seller_id)]);
       await Promise.all([
-        createDoc('notifications', { user_id: deal.buyer_id,  type: 'payment_approved', title: '✅ تم تأكيد الدفع! الصفقة نشطة', body: `دفعتك $${deal.amount} في Escrow — انتظر البائع.`, link: `/deals/${id}`, read_at: null }),
-        createDoc('notifications', { user_id: deal.seller_id, type: 'deal_active', title: '🎉 المشتري دفع — سلّم الآن!', body: `$${deal.amount} في Escrow. ستحصل على $${sellerNet.toFixed(2)} بعد التأكيد.`, link: `/deals/${id}`, read_at: null }),
+        createDoc('notifications', { user_id: deal.buyer_id,  type: 'payment_approved', title: autoStatus === 'in_delivery' ? '🔓 بيانات حسابك جاهزة! — تحقق وأكد الاستلام' : '✅ تم تأكيد الدفع! الصفقة نشطة', body: `دفعتك $${deal.amount} في Escrow — ${autoStatus === 'in_delivery' ? 'ادخل على الصفقة لعرض بيانات الحساب.' : 'انتظر البائع.'}`, link: `/deals/${id}`, read_at: null }),
+        createDoc('notifications', { user_id: deal.seller_id, type: 'deal_active', title: '🎉 المشتري دفع!', body: `$${deal.amount} في Escrow. ستحصل على $${sellerNet.toFixed(2)} بعد تأكيد المشتري.`, link: `/deals/${id}`, read_at: null }),
         notifyNewDeal({ id, amount: deal.amount, listingTitle: deal.listing_title, buyerName: buyerDoc2?.display_name, sellerName: sellerDoc2?.display_name }),
       ]);
-      return apiSuccess({ status: 'in_escrow' });
+      return apiSuccess({ status: autoStatus });
     }
+
 
     // ── البائع يرفع بيانات التسليم ──────────────────────────────
     if (action === 'submit_credentials' && isSeller) {
