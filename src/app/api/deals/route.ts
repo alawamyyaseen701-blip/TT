@@ -12,16 +12,19 @@ export async function GET(req: NextRequest) {
 
     let deals: any[] = [];
     if (role === 'buyer' || role === 'all') {
-      const buyerDeals = await getDocs('deals', [{ field: 'buyer_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' });
+      const buyerDeals = await getDocs('deals', [{ field: 'buyer_id', op: '==', value: auth.userId }]);
       deals.push(...buyerDeals);
     }
     if (role === 'seller' || role === 'all') {
-      const sellerDeals = await getDocs('deals', [{ field: 'seller_id', op: '==', value: auth.userId }], { orderBy: 'created_at', direction: 'desc' });
+      const sellerDeals = await getDocs('deals', [{ field: 'seller_id', op: '==', value: auth.userId }]);
       // Avoid duplicates
       for (const d of sellerDeals) {
         if (!deals.find(x => x.id === d.id)) deals.push(d);
       }
     }
+    // Sort in JS (safe: handles docs without created_at)
+    deals.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
 
     // Enrich with user + listing info
     const enriched = await Promise.all(deals.map(async (d) => {
