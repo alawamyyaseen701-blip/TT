@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/auto-release",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/telegram/report?secret=trustdeal-cron-secret-2025",
+      "schedule": "0 6 * * *"
     }
   ],
   "env": {

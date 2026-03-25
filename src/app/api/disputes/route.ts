@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getTokenFromRequest, apiSuccess, apiError, generateDisputeId } from '@/lib/auth';
 import { getDoc, getDocs, createDoc, updateDoc } from '@/lib/firebase';
+import { notifyDispute } from '@/lib/telegram';
 
 // GET /api/disputes
 export async function GET(req: NextRequest) {
@@ -68,9 +69,11 @@ export async function POST(req: NextRequest) {
     await updateDoc('deals', dealId, { status: 'disputed' });
 
     const otherParty = deal.buyer_id === user.userId ? deal.seller_id : deal.buyer_id;
+    const [buyerDoc, sellerDoc] = await Promise.all([getDoc('users', deal.buyer_id), getDoc('users', deal.seller_id)]);
     await Promise.all([
-      createDoc('notifications', { user_id: 'admin', type: 'new_dispute', title: `نزاع جديد #${disputeId}`, body: `تم فتح نزاع على صفقة #${dealId}`, link: '/admin', read_at: null }),
-      createDoc('notifications', { user_id: otherParty, type: 'dispute_opened', title: '⚖️ تم فتح نزاع', body: `تم فتح نزاع على صفقة #${dealId}`, link: `/deals/${dealId}`, read_at: null }),
+      createDoc('notifications', { user_id: 'admin', type: 'new_dispute', title: `⚤️ نزاع جديد #${disputeId}`, body: `تم فتح نزاع على صفقة #${dealId} — السبب: ${reason}`, link: '/admin', read_at: null }),
+      createDoc('notifications', { user_id: otherParty, type: 'dispute_opened', title: '⚤️ تم فتح نزاع', body: `تم فتح نزاع على صفقة #${dealId}`, link: `/deals/${dealId}`, read_at: null }),
+      notifyDispute({ id: disputeId, dealId, reason: `${reason}${description ? ' — ' + description : ''}`, buyerName: buyerDoc?.display_name || buyerDoc?.username, sellerName: sellerDoc?.display_name || sellerDoc?.username, amount: deal.amount }),
     ]);
 
     return apiSuccess({ disputeId, status: 'open' }, 201);

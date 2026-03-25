@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
 import { createDoc, getDocs, getDoc } from '@/lib/firebase';
+import { notifyWithdrawal } from '@/lib/telegram';
 
 const WITHDRAW_METHODS = ['usdt_trc20', 'usdt_bep20', 'usdt_erc20', 'binance_pay', 'paypal', 'wise', 'bank_transfer'];
 
@@ -40,15 +41,25 @@ export async function POST(req: NextRequest) {
       status:       'pending',
     });
 
-    // Notify admin
-    await createDoc('notifications', {
-      user_id: 'admin',
-      type:    'withdraw_request',
-      title:   '💸 طلب سحب جديد',
-      body:    `${user?.username} طلب سحب $${amount} عبر ${method}`,
-      link:    '/admin',
-      read_at: null,
-    });
+    // Notify admin (in-app + Telegram)
+    await Promise.all([
+      createDoc('notifications', {
+        user_id: 'admin',
+        type:    'withdraw_request',
+        title:   '💸 طلب سحب جديد',
+        body:    `${user?.username} طلب سحب $${amount} عبر ${method}`,
+        link:    '/admin',
+        read_at: null,
+      }),
+      notifyWithdrawal({
+        id,
+        amount:        parseFloat(String(amount)),
+        method,
+        sellerName:    user?.display_name,
+        sellerUsername: user?.username,
+        walletAddress: address.trim(),
+      }),
+    ]);
 
     return apiSuccess({ id, message: 'تم إرسال طلب السحب — سيتم التحويل خلال 24 ساعة' }, 201);
   } catch (e: any) {

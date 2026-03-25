@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getTokenFromRequest, apiSuccess, apiError } from '@/lib/auth';
 import { getDoc, updateDoc, createDoc } from '@/lib/firebase';
+import { notifyPaymentPending, notifyNewDeal, notifyClawback, notifyAdmin } from '@/lib/telegram';
 
 const PROTECTION_HOURS = 72;
 const COMMISSION       = parseFloat(process.env.COMMISSION_RATE || '0.05');
@@ -67,6 +68,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (action === 'confirm_payment' && isBuyer) {
       if (deal.status !== 'pending_payment') return apiError('الصفقة ليست بانتظار الدفع');
       await updateDoc('deals', id, { status: 'payment_sent', payment_confirmed_by_buyer_at: now, payment_tx_id: body.txId || '', payment_method: body.method || '' });
+
+      // Telegram notification to admin
+      const [buyerDoc, sellerDoc] = await Promise.all([
+        getDoc('users', deal.buyer_id),
+        getDoc('users', deal.seller_id),
+      ]);
+      await notifyPaymentPending({
+        id:          id,
+        amount:      deal.amount,
+        method:      body.method || 'manual',
+        txId:        body.txId,
+        buyerName:   buyerDoc?.display_name || buyerDoc?.username,
+        sellerName:  sellerDoc?.display_name || sellerDoc?.username,
+      });
       await createDoc('notifications', { user_id: 'admin', type: 'payment_sent', title: '💰 مشتري أرسل دفعة كريبتو', body: `صفقة #${id.slice(0,8)} — $${deal.amount} — TxID: ${body.txId || '—'}`, link: '/admin', read_at: null });
       return apiSuccess({ status: 'payment_sent' });
     }
@@ -78,9 +93,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const autoRelease = new Date(Date.now() + 7 * 86_400_000).toISOString();
       await updateDoc('deals', id, { status: 'in_escrow', seller_net: sellerNet, auto_release_at: autoRelease, payment_approved_at: now });
       if (deal.listing_id) { const l = await getDoc('listings', deal.listing_id); if (l && !l.allow_multiple_purchases) await updateDoc('listings', deal.listing_id, { status: 'sold' }); }
+      const [buyerDoc2, sellerDoc2] = await Promise.all([getDoc('users', deal.buyer_id), getDoc('users', deal.seller_id)]);
       await Promise.all([
         createDoc('notifications', { user_id: deal.buyer_id,  type: 'payment_approved', title: '✅ تم تأكيد الدفع! الصفقة نشطة', body: `دفعتك $${deal.amount} في Escrow — انتظر البائع.`, link: `/deals/${id}`, read_at: null }),
         createDoc('notifications', { user_id: deal.seller_id, type: 'deal_active', title: '🎉 المشتري دفع — سلّم الآن!', body: `$${deal.amount} في Escrow. ستحصل على $${sellerNet.toFixed(2)} بعد التأكيد.`, link: `/deals/${id}`, read_at: null }),
+        notifyNewDeal({ id, amount: deal.amount, listingTitle: deal.listing_title, buyerName: buyerDoc2?.display_name, sellerName: sellerDoc2?.display_name }),
       ]);
       return apiSuccess({ status: 'in_escrow' });
     }
@@ -120,9 +137,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const sellerDoc = await getDoc('users', deal.seller_id);
       if ((sellerDoc?.wallet_balance || 0) >= sellerNet) await updateDoc('users', deal.seller_id, { wallet_balance: (sellerDoc?.wallet_balance || 0) - sellerNet });
       await updateDoc('deals', id, { status: 'clawback' });
+      const buyerDoc3 = await getDoc('users', deal.buyer_id);
       await Promise.all([
         createDoc('notifications', { user_id: deal.seller_id, type: 'deal_disputed', title: '🚨 تجميد أموال — بلاغ استرداد', body: 'تم تجميد أموالك ريثما يُحقق الفريق.', link: `/deals/${id}`, read_at: null }),
-        createDoc('notifications', { user_id: 'admin', type: 'deal_disputed', title: `🚨 Clawback #${id.slice(0,8)}`, body: reason, link: '/admin', read_at: null }),
+        notifyClawback({ id, amount: deal.amount, reason, buyerName: buyerDoc3?.display_name || buyerDoc3?.username }),
       ]);
       return apiSuccess({ message: 'تم تجميد الأموال وإبلاغ الفريق' });
     }
