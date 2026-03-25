@@ -170,7 +170,7 @@ export default function HomePage() {
       <Header />
 
       {/* HERO */}
-      <section style={{
+      <section className="hero-section" style={{
         minHeight: '100vh',
         background: 'linear-gradient(160deg, #0F172A 0%, #1E3A8A 50%, #0F172A 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -226,7 +226,7 @@ export default function HomePage() {
             <span style={{ color: '#10B981', fontSize: 14, fontWeight: 600 }}>🔒 نظام Escrow الآمن — تحويل الأموال فقط بعد التأكيد</span>
           </div>
 
-          <h1 style={{
+          <h1 className="hero-title" style={{
             fontSize: 'clamp(36px, 6vw, 72px)',
             fontWeight: 900,
             color: 'white',
@@ -251,7 +251,7 @@ export default function HomePage() {
           </p>
 
           {/* Search Bar */}
-          <div style={{
+          <div className="hero-search-bar" style={{
             display: 'flex', gap: 0, maxWidth: 700,
             margin: '0 auto 40px',
             background: 'rgba(255,255,255,0.07)',
@@ -280,7 +280,7 @@ export default function HomePage() {
           </div>
 
           {/* CTAs */}
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="hero-cta" style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/social-accounts" style={{ textDecoration: 'none' }}>
               <button style={{
                 padding: '16px 36px', fontSize: 16, fontWeight: 800,
@@ -342,7 +342,7 @@ export default function HomePage() {
             <h2 className="section-title">اكتشف ما تبحث عنه</h2>
             <p className="section-subtitle">7 أقسام متخصصة لكل ما يتعلق بالأصول الرقمية</p>
           </div>
-          <div style={{
+          <div className="cat-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: 20,
@@ -434,7 +434,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div style={{
+          <div className="escrow-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: 24,
@@ -503,7 +503,7 @@ export default function HomePage() {
           }}>لماذا تختارنا</div>
           <h2 className="section-title">مزايا Trust🔁Deal</h2>
           <p className="section-subtitle">الأمان والثقة في كل خطوة</p>
-          <div style={{
+          <div className="features-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 24, marginTop: 8,
@@ -567,7 +567,7 @@ export default function HomePage() {
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.75)', marginBottom: 40, lineHeight: 1.7 }}>
             انضم إلى منصة Trust🔁Deal وابدأ البيع والشراء بأمان تام عبر نظام Escrow الاحترافي
           </p>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="cta-btns" style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/auth/register" style={{ textDecoration: 'none' }}>
               <button style={{
                 padding: '18px 48px', fontSize: 18, fontWeight: 800,

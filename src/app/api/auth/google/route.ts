@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
     });
 
     const res = new Response(response.body, response);
-    res.headers.set('Set-Cookie', `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Lax`);
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.headers.set('Set-Cookie', `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Lax${isProduction ? '; Secure' : ''}`);
     return res;
   } catch (e: any) {
     console.error('[google-auth]', e);

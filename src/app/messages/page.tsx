@@ -211,10 +211,10 @@ function MessagesContent() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#F8FAFC' }}>
       <Header />
-      <div style={{ display: 'flex', flex: 1, height: 'calc(100vh - 72px)', marginTop: 72, overflow: 'hidden' }}>
+      <div className="messages-layout" style={{ display: 'flex', flex: 1, height: 'calc(100vh - 72px)', marginTop: 72, overflow: 'hidden' }}>
 
         {/* ── Sidebar: Conversations ── */}
-        <div style={{ width: 320, background: 'white', borderLeft: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div className="messages-sidebar" style={{ width: 320, background: 'white', borderLeft: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
           <div style={{ padding: '16px', borderBottom: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <div style={{ fontSize: 17, fontWeight: 800, color: '#0F172A' }}>الرسائل 💬</div>

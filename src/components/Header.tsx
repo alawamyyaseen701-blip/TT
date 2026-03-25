@@ -34,14 +34,16 @@ export default function Header() {
     } catch { setUser(null); }
   }, []);
 
+  // Close mobile menu on route change
+  useEffect(() => { setMenuOpen(false); }, []);
+
   const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch { /* ignore */ }
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
     setUserMenuOpen(false);
+    setMenuOpen(false);
     router.push('/');
   };
 
@@ -66,26 +68,27 @@ export default function Header() {
           background: scrolled ? 'rgba(15,23,42,0.98)' : 'rgba(15,23,42,0.95)',
           backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(255,255,255,0.07)',
-          padding: '0 24px',
+          padding: '0 16px',
         }}
       >
-        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', height: 72, gap: 24 }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', height: 72, gap: 16 }}>
           {/* Logo */}
-          <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+          <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }} onClick={() => setMenuOpen(false)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #2563EB, #10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 16px rgba(37,99,235,0.3)' }}>🔁</div>
-              <div>
-                <div style={{ color: 'white', fontWeight: 900, fontSize: 18, lineHeight: 1.1 }}>Trust🔁Deal</div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 500 }}>منصة الأمان الرقمي</div>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #2563EB, #10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, boxShadow: '0 4px 16px rgba(37,99,235,0.3)', flexShrink: 0 }}>🔁</div>
+              <div className="hide-mobile">
+                <div style={{ color: 'white', fontWeight: 900, fontSize: 17, lineHeight: 1.1 }}>Trust🔁Deal</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 500 }}>منصة الأمان الرقمي</div>
               </div>
+              <div style={{ color: 'white', fontWeight: 900, fontSize: 17 }} className="mobile-only">Trust🔁Deal</div>
             </div>
           </Link>
 
-          {/* Nav */}
-          <nav style={{ display: 'flex', gap: 4, flex: 1, justifyContent: 'center', flexWrap: 'nowrap' }}>
+          {/* Desktop Nav */}
+          <nav className="header-nav-desktop" style={{ gap: 4, flex: 1, justifyContent: 'center', flexWrap: 'nowrap' }}>
             {navLinks.map(link => (
               <Link key={link.href} href={link.href} style={{ textDecoration: 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 10, color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 10, color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 600, transition: 'all 0.2s', cursor: 'pointer', whiteSpace: 'nowrap' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.color = 'white'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)'; }}>
                   <span style={{ fontSize: 14 }}>{link.icon}</span>
@@ -96,16 +99,16 @@ export default function Header() {
           </nav>
 
           {/* Right Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            {/* Notifications */}
-            <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginRight: 'auto' }}>
+            {/* Notifications — hide on very small */}
+            <div style={{ position: 'relative' }} className="hide-mobile">
               <button id="notifications-btn" onClick={() => { setNotifOpen(!notifOpen); setUserMenuOpen(false); }}
                 style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, position: 'relative', transition: 'all 0.2s' }}>
                 🔔
                 <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: '#EF4444', border: '2px solid #0F172A' }} />
               </button>
               {notifOpen && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 8, width: 300, background: '#1E293B', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', zIndex: 50, overflow: 'hidden' }}>
+                <div className="header-dropdown" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 8, width: 300, background: '#1E293B', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', zIndex: 50, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                     <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>الإشعارات</span>
                   </div>
@@ -120,10 +123,10 @@ export default function Header() {
               )}
             </div>
 
-            {/* Add Listing — للمسجلين فقط */}
+            {/* Add Listing — desktop only */}
             {mounted && user && (
-              <Link href="/listings/create" style={{ textDecoration: 'none' }}>
-                <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: 'linear-gradient(135deg, #10B981, #34D399)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
+              <Link href="/listings/create" style={{ textDecoration: 'none' }} className="hide-mobile">
+                <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', background: 'linear-gradient(135deg, #10B981, #34D399)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'Tajawal, sans-serif', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
                   <span style={{ fontSize: 16 }}>+</span>
                   إضافة إعلان
                 </button>
@@ -132,9 +135,9 @@ export default function Header() {
 
             {/* User Area */}
             {!mounted ? null : user ? (
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative' }} className="hide-mobile">
                 <button id="user-menu-btn" onClick={() => { setUserMenuOpen(!userMenuOpen); setNotifOpen(false); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px 6px 6px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', transition: 'all 0.2s' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px 6px 6px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, cursor: 'pointer', transition: 'all 0.2s' }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)'}>
                   <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg, #1E3A8A, #10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: 16 }}>
@@ -143,13 +146,12 @@ export default function Header() {
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ color: 'white', fontWeight: 700, fontSize: 13, lineHeight: 1.2 }}>{user.display_name || user.username}</div>
                     {user.role === 'admin' && <div style={{ fontSize: 10, color: '#EF4444', fontWeight: 700 }}>مدير</div>}
-                    {user.role === 'verified' && <div style={{ fontSize: 10, color: '#10B981', fontWeight: 700 }}>✅ موثق</div>}
                   </div>
                   <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>▼</span>
                 </button>
 
                 {userMenuOpen && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 8, width: 220, background: '#1E293B', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', zIndex: 50, overflow: 'hidden' }}>
+                  <div className="header-dropdown" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 8, width: 220, background: '#1E293B', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', zIndex: 50, overflow: 'hidden' }}>
                     <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                       <div style={{ color: 'white', fontWeight: 800, fontSize: 14 }}>{user.display_name || user.username}</div>
                       <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>@{user.username}</div>
@@ -181,27 +183,120 @@ export default function Header() {
                 )}
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }} className="hide-mobile">
                 <Link href="/auth/login" style={{ textDecoration: 'none' }}>
-                  <button id="login-btn" style={{ padding: '9px 18px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                  <button id="login-btn" style={{ padding: '9px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
                     تسجيل الدخول
                   </button>
                 </Link>
                 <Link href="/auth/register" style={{ textDecoration: 'none' }}>
-                  <button id="register-btn" style={{ padding: '9px 18px', background: 'linear-gradient(135deg, #2563EB, #1E3A8A)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                  <button id="register-btn" style={{ padding: '9px 16px', background: 'linear-gradient(135deg, #2563EB, #1E3A8A)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
                     سجل مجاناً
                   </button>
                 </Link>
               </div>
             )}
+
+            {/* ── Hamburger Button (Mobile only) ── */}
+            <button
+              id="mobile-menu-btn"
+              onClick={() => { setMenuOpen(!menuOpen); setNotifOpen(false); setUserMenuOpen(false); }}
+              className="desktop-only-hide"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 5,
+                width: 44, height: 44,
+                borderRadius: 12,
+                background: menuOpen ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                cursor: 'pointer',
+                padding: 0,
+                flexShrink: 0,
+              }}
+              aria-label="القائمة"
+            >
+              <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2, transition: 'all 0.3s', transform: menuOpen ? 'rotate(45deg) translate(5px, 5px)' : 'none' }} />
+              <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2, transition: 'all 0.3s', opacity: menuOpen ? 0 : 1 }} />
+              <span style={{ display: 'block', width: 20, height: 2, background: 'white', borderRadius: 2, transition: 'all 0.3s', transform: menuOpen ? 'rotate(-45deg) translate(5px, -5px)' : 'none' }} />
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Click outside to close */}
-      {(notifOpen || userMenuOpen) && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-          onClick={() => { setNotifOpen(false); setUserMenuOpen(false); }} />
+      {/* ── Mobile Menu ── */}
+      {menuOpen && (
+        <div className="header-mobile-menu">
+          {/* User summary in mobile menu */}
+          {mounted && user && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 12, marginBottom: 4 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #1E3A8A, #10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: 18, flexShrink: 0 }}>{userInitial}</div>
+                <div>
+                  <div style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>{user.display_name || user.username}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>@{user.username}</div>
+                </div>
+              </div>
+              <div className="header-mobile-divider" />
+            </>
+          )}
+
+          {/* Nav Links */}
+          {navLinks.map(link => (
+            <Link key={link.href} href={link.href} className="header-mobile-link" onClick={() => setMenuOpen(false)}>
+              <span style={{ fontSize: 18 }}>{link.icon}</span>
+              {link.label}
+            </Link>
+          ))}
+
+          <div className="header-mobile-divider" />
+
+          {/* User actions */}
+          {mounted && user ? (
+            <>
+              {[
+                { href: '/dashboard', icon: '📊', label: 'لوحة التحكم' },
+                { href: `/profile/${user.username}`, icon: '👤', label: 'ملفي الشخصي' },
+                { href: '/listings/create', icon: '➕', label: 'إضافة إعلان' },
+                { href: '/messages', icon: '💬', label: 'الرسائل' },
+                { href: '/notifications', icon: '🔔', label: 'الإشعارات' },
+                { href: '/settings', icon: '⚙️', label: 'الإعدادات' },
+                ...(user.role === 'admin' ? [{ href: '/admin', icon: '🛡️', label: 'لوحة الإدارة' }] : []),
+              ].map(item => (
+                <Link key={item.href} href={item.href} className="header-mobile-link" onClick={() => setMenuOpen(false)}>
+                  <span style={{ fontSize: 18 }}>{item.icon}</span>
+                  {item.label}
+                </Link>
+              ))}
+              <div className="header-mobile-divider" />
+              <button onClick={handleLogout}
+                style={{ width: '100%', padding: '13px 16px', border: 'none', borderRadius: 12, background: 'rgba(239,68,68,0.1)', color: '#EF4444', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', display: 'flex', alignItems: 'center', gap: 12 }}>
+                🚪 تسجيل الخروج
+              </button>
+            </>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+              <Link href="/auth/login" style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                <button style={{ width: '100%', padding: '14px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 600, fontSize: 15, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                  تسجيل الدخول
+                </button>
+              </Link>
+              <Link href="/auth/register" style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                <button style={{ width: '100%', padding: '14px', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg, #2563EB, #1E3A8A)', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                  سجل مجاناً
+                </button>
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Click outside overlay */}
+      {(notifOpen || userMenuOpen || menuOpen) && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 997 }}
+          onClick={() => { setNotifOpen(false); setUserMenuOpen(false); setMenuOpen(false); }} />
       )}
     </>
   );

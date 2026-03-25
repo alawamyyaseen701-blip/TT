@@ -48,7 +48,7 @@ function LoginContent() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'Tajawal, sans-serif', direction: 'rtl' }}>
       {/* ── Left Panel ── */}
-      <div style={{ flex: 1, background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 60%, #0F4C75 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, position: 'relative', overflow: 'hidden' }}>
+      <div className="auth-left-panel" style={{ flex: 1, background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 60%, #0F4C75 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, position: 'relative', overflow: 'hidden' }}>
         {/* Decorative circles */}
         <div style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }} />
         <div style={{ position: 'absolute', bottom: -100, left: -60, width: 400, height: 400, borderRadius: '50%', background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.12)' }} />
@@ -85,7 +85,7 @@ function LoginContent() {
       </div>
 
       {/* ── Right Panel (Form) ── */}
-      <div style={{ width: 480, background: '#F8FAFC', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48 }}>
+      <div className="auth-right-panel" style={{ width: 480, background: '#F8FAFC', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48 }}>
         <div style={{ width: '100%', maxWidth: 380 }}>
           <h1 style={{ color: '#0F172A', fontSize: 26, fontWeight: 900, marginBottom: 6 }}>تسجيل الدخول</h1>
           <p style={{ color: '#64748B', fontSize: 14, marginBottom: 28 }}>أدخل بيانات حسابك للمتابعة</p>

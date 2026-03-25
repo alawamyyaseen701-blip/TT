@@ -10,7 +10,7 @@ export default function Footer() {
     }}>
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
         {/* Top Section */}
-        <div style={{
+        <div className="footer-top" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: 48,
@@ -121,7 +121,7 @@ export default function Footer() {
 
 
         {/* Bottom */}
-        <div style={{
+        <div className="footer-bottom" style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           flexWrap: 'wrap', gap: 16,
           color: 'rgba(255,255,255,0.3)', fontSize: 13,
