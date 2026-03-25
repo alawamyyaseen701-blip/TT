@@ -4,13 +4,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 const ADMIN_NAV = [
-  { id: 'dashboard', icon: '📊', label: 'لوحة التحكم' },
-  { id: 'users',    icon: '👥', label: 'المستخدمون' },
-  { id: 'listings', icon: '📋', label: 'الإعلانات' },
-  { id: 'deals',    icon: '🤝', label: 'الصفقات' },
-  { id: 'disputes', icon: '⚖️', label: 'النزاعات' },
-  { id: 'payments', icon: '💳', label: 'طلبات السحب' },
-  { id: 'settings', icon: '⚙️', label: 'الإعدادات' },
+  { id: 'dashboard',       icon: '📊', label: 'لوحة التحكم' },
+  { id: 'users',           icon: '👥', label: 'المستخدمون' },
+  { id: 'listings',        icon: '📋', label: 'الإعلانات' },
+  { id: 'deals',           icon: '🤝', label: 'الصفقات' },
+  { id: 'disputes',        icon: '⚖️', label: 'النزاعات' },
+  { id: 'payments',        icon: '💰', label: 'طلبات السحب' },
+  { id: 'payment-methods', icon: '💳', label: 'طرق الدفع', link: '/admin/payment-methods' },
+  { id: 'settings',        icon: '⚙️', label: 'الإعدادات' },
 ];
 
 const STATUS_COLORS: Record<string, { bg: string; c: string; label: string }> = {
@@ -167,11 +168,19 @@ export default function AdminDashboard() {
         {/* Sidebar */}
         <aside style={{ width: 220, background: '#1E293B', borderLeft: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, padding: '16px 8px' }}>
           {ADMIN_NAV.map(item => (
-            <button key={item.id} id={`admin-nav-${item.id}`} onClick={() => setActiveSection(item.id)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', fontSize: 13, fontWeight: 600, marginBottom: 4, transition: 'all 0.2s', background: activeSection === item.id ? 'rgba(37,99,235,0.15)' : 'transparent', color: activeSection === item.id ? '#60A5FA' : 'rgba(255,255,255,0.55)' }}>
-              <span style={{ fontSize: 17 }}>{item.icon}</span>
-              {item.label}
-            </button>
+            (item as any).link ? (
+              <Link key={item.id} href={(item as any).link} style={{ textDecoration: 'none' }}>
+                <button id={`admin-nav-${item.id}`}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', fontSize: 13, fontWeight: 600, marginBottom: 4, background: 'rgba(99,102,241,0.1)', color: '#A5B4FC' }}>
+                  <span style={{ fontSize: 17 }}>{item.icon}</span>{item.label}
+                </button>
+              </Link>
+            ) : (
+              <button key={item.id} id={`admin-nav-${item.id}`} onClick={() => setActiveSection(item.id)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', fontSize: 13, fontWeight: 600, marginBottom: 4, transition: 'all 0.2s', background: activeSection === item.id ? 'rgba(37,99,235,0.15)' : 'transparent', color: activeSection === item.id ? '#60A5FA' : 'rgba(255,255,255,0.55)' }}>
+                <span style={{ fontSize: 17 }}>{item.icon}</span>{item.label}
+              </button>
+            )
           ))}
         </aside>
 
