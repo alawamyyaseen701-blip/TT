@@ -31,7 +31,7 @@ const LISTING_TYPES: Record<string, string> = {
   social: '📱 سوشيال', asset: '💎 أصول', store: '🛒 منتج', subscription: '⭐ اشتراك', service: '⚡ خدمة',
 };
 
-// ── Purchase Card: shows credentials securely ──
+// ── Purchase Card: shows deal status + credentials when completed ──
 function PurchaseCard({ deal, userId }: { deal: any; userId: string }) {
   const [showCreds, setShowCreds]   = useState(false);
   const [creds, setCreds]           = useState<any>(null);
@@ -39,8 +39,9 @@ function PurchaseCard({ deal, userId }: { deal: any; userId: string }) {
   const [copyMsg, setCopyMsg]       = useState('');
 
   const isBuyer = deal.buyer_id === userId;
-  if (!isBuyer || deal.status !== 'completed') return null;
+  if (!isBuyer) return null;
 
+  const isCompleted = deal.status === 'completed';
   const fetchCreds = async () => {
     if (creds) { setShowCreds(s => !s); return; }
     setLoading(true);
@@ -80,14 +81,37 @@ function PurchaseCard({ deal, userId }: { deal: any; userId: string }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontWeight: 900, color: '#10B981', fontSize: 16 }}>${deal.amount}</span>
+          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, ...STATUS_COLORS[deal.status] }}>
+            {STATUS_COLORS[deal.status]?.label || deal.status}
+          </span>
           <Link href={`/deals/${deal.id}`} style={{ textDecoration: 'none' }}>
             <button style={{ padding: '6px 14px', background: 'rgba(37,99,235,0.08)', border: 'none', borderRadius: 8, color: '#2563EB', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>عرض الصفقة</button>
           </Link>
         </div>
       </div>
 
-      {/* GitHub link if available */}
-      {deal.github_url && (
+      {/* Status Guide */}
+      {!isCompleted && (
+        <div style={{ padding: '12px 16px', borderRadius: 12, background: deal.status === 'in_delivery' ? 'rgba(37,99,235,0.06)' : deal.status === 'in_escrow' ? 'rgba(245,158,11,0.06)' : 'rgba(148,163,184,0.06)', border: `1px solid ${deal.status === 'in_delivery' ? 'rgba(37,99,235,0.15)' : deal.status === 'in_escrow' ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.15)'}`, marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>
+            {deal.status === 'payment_sent'   && '⏳ تم إرسال الدفعة — بانتظار تأكيد الأدمن'}
+            {deal.status === 'pending_payment' && '💳 بانتظار الدفع — اضغط "عرض الصفقة" لإتمام الدفع'}
+            {deal.status === 'in_escrow'      && '🔒 دفعتك في Escrow — البائع سيسلّم الحساب قريباً'}
+            {deal.status === 'in_delivery'    && '📦 البائع سلّم الحساب — ادخل على الصفقة لرؤية البيانات وتأكيد الاستلام'}
+            {deal.status === 'cancelled'      && '❌ الصفقة ملغاة'}
+          </div>
+          {(deal.status === 'in_escrow' || deal.status === 'in_delivery') && (
+            <Link href={`/deals/${deal.id}`} style={{ textDecoration: 'none' }}>
+              <button style={{ padding: '8px 20px', background: deal.status === 'in_delivery' ? 'linear-gradient(135deg,#2563EB,#1E3A8A)' : 'linear-gradient(135deg,#F59E0B,#D97706)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif' }}>
+                {deal.status === 'in_delivery' ? '🔑 عرض بيانات الحساب وتأكيد الاستلام →' : '🔍 عرض الصفقة →'}
+              </button>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* GitHub link if available — show when completed or in_delivery */}
+      {deal.github_url && isCompleted && (
         <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 12, background: 'rgba(15,23,42,0.05)', border: '1px solid rgba(15,23,42,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>🐙 رابط GitHub</span>
           <a href={deal.github_url} target="_blank" rel="noopener noreferrer"
@@ -95,11 +119,13 @@ function PurchaseCard({ deal, userId }: { deal: any; userId: string }) {
         </div>
       )}
 
-      {/* Credentials button */}
-      <button id={`show-creds-${deal.id}`} onClick={fetchCreds} disabled={loadingCreds}
-        style={{ width: '100%', padding: '10px', borderRadius: 12, border: '1.5px dashed #CBD5E1', background: showCreds ? 'rgba(239,68,68,0.03)' : 'rgba(30,58,138,0.04)', color: '#1E3A8A', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        {loadingCreds ? '⏳ جاري التحميل...' : showCreds ? '🔒 إخفاء بيانات الحساب' : '🔑 عرض بيانات الحساب / الباسورد'}
-      </button>
+      {/* Credentials button — only for completed deals */}
+      {isCompleted && (
+        <button id={`show-creds-${deal.id}`} onClick={fetchCreds} disabled={loadingCreds}
+          style={{ width: '100%', padding: '10px', borderRadius: 12, border: '1.5px dashed #CBD5E1', background: showCreds ? 'rgba(239,68,68,0.03)' : 'rgba(30,58,138,0.04)', color: '#1E3A8A', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'Tajawal, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {loadingCreds ? '⏳ جاري التحميل...' : showCreds ? '🔒 إخفاء بيانات الحساب' : '🔑 عرض بيانات الحساب / الباسورد'}
+        </button>
+      )}
 
       {/* Credentials panel */}
       {showCreds && creds && (
@@ -540,8 +566,9 @@ export default function DashboardPage() {
   const activeDeals  = deals.filter(d => d.status === 'in_escrow' || d.status === 'delivered').length;
   const completedDeals = deals.filter(d => d.status === 'completed').length;
   const myListings   = listings.filter(l => l.seller_id === user?.id);
-  // Deals where current user is the BUYER and deal is completed
-  const myPurchases  = deals.filter(d => d.buyer_id === user?.id && d.status === 'completed');
+  // ALL deals where current user is the BUYER (any status)
+  const myPurchases  = deals.filter(d => d.buyer_id === user?.id);
+  const completedPurchases = myPurchases.filter(d => d.status === 'completed').length;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Tajawal, sans-serif' }}>
@@ -570,7 +597,7 @@ export default function DashboardPage() {
               { label: 'الرصيد المتاح',  val: `$${wallet.balance.toFixed(2)}`,  icon: '💰', color: '#10B981', sub: 'قابل للسحب' },
               { label: 'في Escrow',       val: `$${wallet.escrow.toFixed(2)}`,   icon: '🔒', color: '#F59E0B', sub: 'محتجز' },
               { label: 'صفقات نشطة',     val: activeDeals.toString(),            icon: '🤝', color: '#2563EB', sub: 'جارية' },
-              { label: 'مشترياتي',       val: myPurchases.length.toString(),     icon: '🛒', color: '#8B5CF6', sub: 'مكتملة', onClick: () => setActiveTab('purchases') },
+              { label: 'مشترياتي',       val: myPurchases.length.toString(),     icon: '🛒', color: '#8B5CF6', sub: 'كل مشترياتي', onClick: () => setActiveTab('purchases') },
             ].map(s => (
               <div key={s.label} onClick={(s as any).onClick} style={{ background: 'white', borderRadius: 16, padding: '20px 24px', border: '1.5px solid #F1F5F9', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: (s as any).onClick ? 'pointer' : 'default' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -696,7 +723,9 @@ export default function DashboardPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <h2 style={{ fontSize: 17, fontWeight: 800, color: '#0F172A' }}>🛒 مشترياتي ({myPurchases.length})</h2>
-                <span style={{ fontSize: 12, color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: 8 }}>اضغط "عرض بيانات الحساب" لرؤية الباسورد</span>
+                <span style={{ fontSize: 12, color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: 8 }}>
+                  {completedPurchases} مكتملة · {myPurchases.length - completedPurchases} جارية
+                </span>
               </div>
               {myPurchases.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 24px', background: 'white', borderRadius: 16, border: '1.5px solid #F1F5F9', color: '#94A3B8' }}>
