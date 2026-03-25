@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -36,6 +37,14 @@ export default function ListingDetailPage() {
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyError, setBuyError] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // ── Zoom state ──
+  const [zoom, setZoom]           = useState(false);
+  const [zoomPos, setZoomPos]     = useState({ x: 0, y: 0 });   // 0–100 %
+  const [lensPos, setLensPos]     = useState({ x: 0, y: 0 });   // px inside container
+  const imgContainerRef           = useRef<HTMLDivElement>(null);
+  const ZOOM_FACTOR               = 2.5;
+  const LENS_SIZE                 = 100; // px
 
   useEffect(() => {
     const u = localStorage.getItem('user');
@@ -93,6 +102,19 @@ export default function ListingDetailPage() {
   const isOwner = currentUser && listing && currentUser.id === listing.seller_id;
   const images: string[] = listing?.images?.length ? listing.images : [TYPE_ICONS[listing?.type] || '📋'];
   const isReal = (val: any) => val !== null && val !== undefined && val !== '' && val !== 0;
+  const isRealImg = images[activeImage]?.startsWith('data:') || images[activeImage]?.startsWith('http');
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!imgContainerRef.current || !isRealImg) return;
+    const rect = imgContainerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width)  * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top)  / rect.height) * 100));
+    setZoomPos({ x, y });
+    setLensPos({
+      x: e.clientX - rect.left - LENS_SIZE / 2,
+      y: e.clientY - rect.top  - LENS_SIZE / 2,
+    });
+  }, [isRealImg]);
 
   /* ── Loading ── */
   if (loading) return (
@@ -168,19 +190,73 @@ export default function ListingDetailPage() {
             <div>
               {/* Images */}
               <div style={{ background: 'white', borderRadius: 24, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 24 }}>
-                <div style={{ padding: '60px', background: 'linear-gradient(135deg, #F1F5F9, #EFF6FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 260 }}>
-                  {images[activeImage]?.startsWith('data:') ? (
-                    <img src={images[activeImage]} alt="" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 16, objectFit: 'contain' }} />
+
+                {/* Main image with zoom */}
+                <div
+                  ref={imgContainerRef}
+                  style={{ padding: '40px', background: 'linear-gradient(135deg, #F1F5F9, #EFF6FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 260, position: 'relative', cursor: isRealImg ? 'crosshair' : 'default', overflow: 'hidden' }}
+                  onMouseMove={handleMouseMove}
+                  onMouseEnter={() => isRealImg && setZoom(true)}
+                  onMouseLeave={() => setZoom(false)}
+                >
+                  {images[activeImage]?.startsWith('data:') || images[activeImage]?.startsWith('http') ? (
+                    <img src={images[activeImage]} alt="" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 16, objectFit: 'contain', display: 'block', pointerEvents: 'none', userSelect: 'none' }} />
                   ) : (
                     <div style={{ fontSize: 120 }}>{images[activeImage]}</div>
                   )}
+
+                  {/* Magnifier lens */}
+                  {zoom && isRealImg && (
+                    <div style={{
+                      position: 'absolute',
+                      left: lensPos.x,
+                      top:  lensPos.y,
+                      width: LENS_SIZE,
+                      height: LENS_SIZE,
+                      borderRadius: '50%',
+                      border: '2px solid #1E3A8A',
+                      boxShadow: '0 0 0 1px rgba(30,58,138,0.2)',
+                      background: 'rgba(30,58,138,0.08)',
+                      pointerEvents: 'none',
+                      zIndex: 10,
+                    }} />
+                  )}
                 </div>
+
+                {/* Zoom preview panel — floats to the right */}
+                {zoom && isRealImg && (
+                  <div style={{
+                    position: 'fixed',
+                    top: (imgContainerRef.current?.getBoundingClientRect().top ?? 80) + 4,
+                    left: (imgContainerRef.current?.getBoundingClientRect().right ?? 0) + 16,
+                    width: 380,
+                    height: 380,
+                    borderRadius: 20,
+                    border: '1.5px solid #E2E8F0',
+                    background: 'white',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+                    overflow: 'hidden',
+                    zIndex: 1000,
+                    pointerEvents: 'none',
+                  }}>
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      backgroundImage: `url(${images[activeImage]})`,
+                      backgroundSize: `${ZOOM_FACTOR * 100}%`,
+                      backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                      backgroundRepeat: 'no-repeat',
+                    }} />
+                    <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, textAlign: 'center', fontSize: 11, color: '#94A3B8' }}>🔍 تكبير {ZOOM_FACTOR}×</div>
+                  </div>
+                )}
+
                 {images.length > 1 && (
                   <div style={{ display: 'flex', gap: 8, padding: '16px 20px', borderTop: '1px solid #F1F5F9', flexWrap: 'wrap' }}>
                     {images.map((img, i) => (
-                      <button key={i} id={`img-thumb-${i}`} onClick={() => setActiveImage(i)}
-                        style={{ width: 60, height: 60, borderRadius: 10, border: `2px solid ${activeImage === i ? '#1E3A8A' : '#E2E8F0'}`, background: '#F8FAFC', fontSize: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 0 }}>
-                        {img?.startsWith('data:') ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : img}
+                      <button key={i} id={`img-thumb-${i}`} onClick={() => { setActiveImage(i); setZoom(false); }}
+                        style={{ width: 60, height: 60, borderRadius: 10, border: `2px solid ${activeImage === i ? '#1E3A8A' : '#E2E8F0'}`, background: '#F8FAFC', fontSize: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 0, transition: 'border-color 0.2s' }}>
+                        {img?.startsWith('data:') || img?.startsWith('http') ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : img}
                       </button>
                     ))}
                   </div>
