@@ -42,7 +42,7 @@ function StatCard({ val, label, icon }: { val: string; label: string; icon: stri
   );
 }
 
-function ListingCard({ item }: { item: typeof FEATURED[0] }) {
+function ListingCard({ item }: { item: any }) {
   const [fav, setFav] = useState(false);
   return (
     <div className="card" style={{ position: 'relative', overflow: 'hidden' }}>
